@@ -1,0 +1,482 @@
+"""A set of functions for plotting with matplotlib.
+   The intent is to reduce repetitive code, while
+   maintaining a consistent look and feel for chart
+   outputs. """
+
+# --- imports
+# system imports
+import re
+from pathlib import Path
+from typing import Iterable, Optional
+
+# data science imports
+import matplotlib.pyplot as plt
+from matplotlib import ticker
+import matplotlib.dates as mdates
+import pandas as pd
+import statsmodels.api as sm
+
+# local imports
+from common import MIDDLE_DATE
+
+# --- constants - default settings
+DEFAULT_FILE_TYPE = "png"
+DEFAULT_FIG_SIZE = (9, 4.5)
+DEFAULT_DPI = 300
+DEFAULT_CHART_DIR = "../charts"
+Path(DEFAULT_CHART_DIR).mkdir(parents=True, exist_ok=True)
+
+
+NARROW_WIDTH = 1.0
+WIDE_WIDTH = 2.0
+LEGEND_FONTSIZE = "x-small"
+LEGEND_SET = {"loc": "best", "fontsize": LEGEND_FONTSIZE}
+
+MARKERS = [
+    "$a$",
+    "$b$",
+    "$c$",
+    "$d$",
+    "$e$",
+    "$f$",
+    "$g$",
+    "$h$",
+    "$i$",
+    "$j$",
+    "$k$",
+    "$l$",
+    "$m$",
+    "$n$",
+    "$o$",
+    "$p$",
+    "$q$",
+    "$r$",
+    "$s$",
+    "$t$",
+    "$u$",
+    "$v$",
+    "$w$",
+    "$x$",
+    "$y$",
+    "$z$",
+]
+
+RFOOTER = "marktheballot.blogspot.com"
+LFOOTER = "Australian polling data sourced from Wikipedia. "
+footers = {"lfooter": LFOOTER, "rfooter": RFOOTER}
+
+
+# --- initialise plot
+
+
+def initiate_plot():
+    """Get a matplotlib figure and axes instance."""
+    fig, ax = plt.subplots(figsize=(9, 4.5), constrained_layout=False)
+    ax.margins(0.02)
+    return fig, ax
+
+
+# --- clear_chart_dir()
+
+
+def clear_chart_dir() -> None:
+    """Remove all graph-image files from the chart_dir."""
+
+    for fs_object in Path(DEFAULT_CHART_DIR).glob(f"*.{DEFAULT_FILE_TYPE}"):
+        if fs_object.is_file():
+            fs_object.unlink()
+
+
+# --- amalgumate other
+
+
+def amalgamate_other(
+    df: pd.DataFrame,
+    columns_to_sum: tuple[str] = ("ONP", "UAP", "OTH"),
+    new_column="Primary vote Other",
+) -> pd.DataFrame:
+    """Sum regex-pattern selected columns and place in new_column."""
+    
+    sum_cols = [x for x in df.columns if any(ele in x for ele in columns_to_sum)]
+    df[new_column] = df[sum_cols].sum(axis=1)
+    return df
+
+
+# --- colors for different types of line graphs
+
+def get_color(s: str) -> str:
+    """Return a color for a party label."""
+
+    color_map = {
+        ("dissatisfied",): "darkorange",  # must be before satisfied
+        ("satisfied",): "royalblue",
+        ("l/np", "coalition", "dutton", ): "royalblue",
+        ("alp", "labor", "albanese", ): "crimson",
+        ("grn", "green", ): "green",
+        ("other", "oth", ): "darkorange",
+    }
+    for find_me, return_me in color_map.items():
+        if any(x in s.lower() for x in find_me):
+            return return_me
+    return "darkgrey"
+
+
+def colorise(party_list: Iterable) -> list[str]:
+    """Return a list of party colors for a party_list."""
+    
+    return [get_color(x) for x in party_list]
+
+
+def contrast(s: str) -> str:
+    match s:
+        case "royalblue": return "darkred"
+        case "darkorange": return "mediumblue"
+        case "crimson": return "mediumblue"
+        case "green": return "darkblue"
+    return "black"
+
+
+# --- finalise_plot()
+
+
+# filename limitations - used to map the plot title to a filename
+_remove = re.compile(r"[^0-9A-Za-z]")  # make sensible file names
+_reduce = re.compile(r"[-]+")  # eliminate multiple hyphens
+
+# map of the acceptable kwargs for finalise_plot()
+# make sure "legend" is last in the _splat_kwargs tuple ...
+_splat_kwargs = ("axhspan", "axvspan", "axhline", "axvline", "legend")
+_value_must_kwargs = ("title", "xlabel", "ylabel")
+_value_may_kwargs = ("ylim", "xlim", "yscale", "xscale")
+_value_kwargs = _value_must_kwargs + _value_may_kwargs
+_annotation_kwargs = ("lfooter", "rfooter", "lheader", "rheader")
+
+_file_kwargs = ("pre_tag", "tag", "file_type", "dpi")
+_fig_kwargs = ("figsize", "show")
+_oth_kwargs = ("zero_y", "y0", "y50", "dont_save", "dont_close")
+_ACCEPTABLE_KWARGS = frozenset(
+    _value_kwargs
+    + _splat_kwargs
+    + _file_kwargs
+    + _annotation_kwargs
+    + _fig_kwargs
+    + _oth_kwargs
+)
+
+
+# - private utility functions for finalise_plot()
+
+
+# private
+def _check_kwargs(**kwargs) -> None:
+    """Report any unrecognised keyword arguments."""
+
+    for k in kwargs:
+        if k not in _ACCEPTABLE_KWARGS:
+            print(f"Warning: {k} was an unrecognised keyword argument")
+
+
+# private
+def _apply_value_kwargs(axes, settings: tuple, **kwargs) -> None:
+    """Set matplotlib elements by name using Axes.set()."""
+
+    for setting in settings:
+        value = kwargs.get(setting, None)
+        if value is None and setting not in _value_must_kwargs:
+            continue
+        axes.set(**{setting: value})
+
+
+# private
+def _apply_splat_kwargs(axes, settings: tuple, **kwargs) -> None:
+    """Set matplotlib elements dynamically using setting_name and splat."""
+
+    for method_name in settings:
+        if method_name in kwargs:
+            if isinstance(kwargs[method_name], dict):
+                method = getattr(axes, method_name)
+                method(**kwargs[method_name])
+            else:
+                print(f"Warning expected dict argument: {method_name}")
+
+
+# private
+def _apply_annotations(axes, **kwargs) -> None:
+    """Set figure size and apply chart annotations."""
+
+    fig = axes.figure
+    fig_size = DEFAULT_FIG_SIZE if "figsize" not in kwargs else kwargs["figsize"]
+    fig.set_size_inches(*fig_size)
+
+    annotations = {
+        "rfooter": (0.99, 0.001, "right", "bottom"),
+        "lfooter": (0.01, 0.001, "left", "bottom"),
+        "rheader": (0.99, 0.999, "right", "top"),
+        "lheader": (0.01, 0.999, "left", "top"),
+    }
+
+    for annotation in _annotation_kwargs:
+        if annotation in kwargs:
+            x_pos, y_pos, h_align, v_align = annotations[annotation]
+            fig.text(
+                x_pos,
+                y_pos,
+                kwargs[annotation],
+                ha=h_align,
+                va=v_align,
+                fontsize=9,
+                fontstyle="italic",
+                color="#999999",
+            )
+
+
+# private
+def _apply_kwargs(axes, **kwargs) -> None:
+    """Apply settings found in kwargs."""
+
+    def check_kwargs(name):
+        return name in kwargs and kwargs[name]
+
+    _apply_value_kwargs(axes, _value_kwargs, **kwargs)
+    _apply_splat_kwargs(axes, _splat_kwargs, **kwargs)
+    _apply_annotations(axes, **kwargs)
+
+    if check_kwargs("zero_y"):
+        bottom, top = axes.get_ylim()
+        adj = (top - bottom) * 0.02
+        if bottom > -adj:
+            axes.set_ylim(bottom=-adj)
+        if top < adj:
+            axes.set_ylim(top=adj)
+
+    low, high = axes.get_ylim()
+    if check_kwargs("y0"):
+        if low < 0 < high:
+            axes.axhline(y=0, lw=0.75, c="#555555")
+    if check_kwargs("y50"):
+        if low < 50 < high:
+            axes.axhline(y=50, lw=0.75, c="#555555")
+
+
+# private
+def _save_to_file(fig, **kwargs) -> None:
+    """Save the figure to file."""
+
+    saving = True if "dont_save" not in kwargs else not kwargs["dont_save"]
+    if saving:
+        title = "" if "title" not in kwargs else kwargs["title"]
+        pre_tag = "" if "pre_tag" not in kwargs else kwargs["pre_tag"]
+        tag = "" if "tag" not in kwargs else kwargs["tag"]
+        file_title = re.sub(_remove, "-", title).lower()
+        file_title = re.sub(_reduce, "-", file_title)
+        file_type = (
+            DEFAULT_FILE_TYPE if "file_type" not in kwargs else kwargs["file_type"]
+        )
+        dpi = DEFAULT_DPI if "dpi" not in kwargs else kwargs["dpi"]
+        fig.savefig(f"{DEFAULT_CHART_DIR}/{pre_tag}{file_title}-{tag}.{file_type}", dpi=dpi)
+
+
+# - public functions for finalise_plot()
+
+
+# public
+def get_possible_kwargs() -> list[str]:
+    """Return a list of possible kwargs for finalise_plot()."""
+    return list(_ACCEPTABLE_KWARGS)
+
+
+# public
+def finalise_plot(axes, **kwargs) -> None:
+    """A function to finalise and save plots to the file system. The filename
+    for the saved plot is constructed from the chart_dir, the plot's title,
+    any specified tag text, and the file_type for the plot.
+     Arguments:
+       - axes - matplotlib axes object - required
+      kwargs
+       - title - string - plot title, also used to save the file
+       - xlabel - string - label for the x-axis
+       - ylabel - string - label for the y-axis
+       - pre_tag - string - text before the title in file name
+       - tag - string - text after the title - used in file name
+         to make similar plots have unique file names
+       - chart_dir - string - location of the chartr directory
+       - file_type - string - specify a file type - eg. 'png' or 'svg'
+       - lfooter - string - text to display on bottom left of plot
+       - rfooter - string - text to display of bottom right of plot
+       - lheader - string - text to display on top left of plot
+       - rheader - string - text to display of top right of plot
+       - figsize - tuple - figure size in inches - eg. (8, 4)
+       - show - Boolean - whether to show the plot or not
+       - zero_y - bool - ensure y=0 is included in the plot.
+       - y0 - bool - highlight the y=0 line on the plot
+       - dont_save - bool - dont save the plot to the file system
+       - dont_close - bool - dont close the plot
+       - dpi - int - dots per inch for the saved chart
+       - legend - dict - arguments to pass to axes.legend()
+       - axhspan - dict - arguments to pass to axes.axhspan()
+       - axvspan - dict - arguments to pass to axes.axvspan()
+       - axhline - dict - arguments to pass to axes.axhline()
+       - axvline - dict - arguments to pass to axes.axvline()
+       - ylim - tuple[float, float] - set lower and upper y-axis limits
+       - xlim - tuple[float, float] - set lower and upper x-axis limits
+     Returns:
+       - None
+    """
+
+    _check_kwargs(**kwargs)
+
+    # margins
+    axes.use_sticky_margins = False
+    axes.margins(0.02)
+    axes.autoscale(tight=False)  # This is problematic ...
+
+    _apply_kwargs(axes, **kwargs)
+
+    # tight layout
+    fig = axes.figure
+    fig.tight_layout(pad=1.1)
+
+    _save_to_file(fig, **kwargs)
+
+    # show the plot in Jupyter Lab
+    _ = plt.show() if "show" in kwargs and kwargs["show"] else None
+
+    # And close
+    closing = True if "dont_close" not in kwargs else not kwargs["dont_close"]
+    if closing:
+        plt.close()
+
+
+# --- Misc ---
+
+
+def annotate_endpoint(ax, series: pd.Series, end=None, rot=90):
+    """Annotate the endpoint of a series on a plot."""
+    
+    xlim = ax.get_xlim()
+    span = xlim[1] - xlim[0]
+    x = xlim[1] - (0.0005 * span)
+    x = x if end is None else end
+    font_size = 10
+    ax.text(
+        x,
+        series.iloc[-1],
+        f"{round(series.iloc[-1], 1)}",
+        ha="left",
+        va="center",
+        rotation=rot,
+        fontsize=font_size,
+    )
+
+
+def add_data_points_by_pollster(
+    ax,
+    df,
+    column,
+    p_color,
+    brand_col="Brand",
+    date_col="Mean Date",
+    no_label=False,
+    marker=None,
+):
+    """Add individual poll results to the plot."""
+    for i, brand in enumerate(sorted(df[brand_col].unique())):
+        poll = df[df[brand_col] == brand]
+        series = (
+            poll[column].sum(axis=1, skipna=True)
+            if type(column) is list
+            else poll[column]
+        )
+        label = None if no_label else brand
+        m = marker if marker is not None else MARKERS[i]
+        ax.scatter(poll[date_col], series, marker=m, c=p_color, s=20, label=label)
+
+
+# --- Localised regression charts
+LOWESS_DAYS = 91
+
+
+def calculate_lowess(
+    series: pd.Series,  # with a PeriodIndex
+    frac_period: int = LOWESS_DAYS,
+) -> Optional[pd.Series]:
+    """Calculate a localised regression."""
+
+    notna_series = series[series.notna()]
+    endog = notna_series.values
+    day_zero = notna_series.index.min()
+    days = (notna_series.index - day_zero) / pd.Timedelta(days=1) + 1
+    frac = frac_period / days.max()
+    if frac < 0 or frac > 1:
+        return None
+
+    lowess = sm.nonparametric.lowess(
+        endog=endog,
+        exog=days,
+        frac=frac,
+        return_sorted=False,
+    )
+    lowess_series = pd.Series(lowess, index=notna_series.index).drop_duplicates(
+        keep="first"
+    )
+    return lowess_series
+
+
+def _generate_defaults(
+    kwargs: dict,
+    defaults: dict,
+) -> tuple[dict, dict]:
+    """Adjust default arguments based on what is in kwargs.
+    Returns kwargs_adjusted and defaults_adjusted."""
+
+    kwargs_adjusted = kwargs.copy()
+    defaults_adjusted = defaults.copy()
+    for key in defaults_adjusted:
+        if key in kwargs_adjusted:
+            defaults_adjusted[key] = kwargs_adjusted[key]
+            del kwargs_adjusted[key]
+    return kwargs_adjusted, defaults_adjusted
+
+
+def plot_loess(
+    data: dict[str, pd.DataFrame],  # dictionary of polling data
+    plot_ins: dict[str, list[str]],  # dictionary of plot instructions
+    **kwargs,  # any additional arguments for finalise_plot()
+) -> None:
+    """Work through the plotable dictionary of plot instructions
+    to generate localised regression plots. Additional arguments
+    are passed to finalise_plot()"""
+
+    for label, pattern_list in plot_ins.items():
+        df = data[label]
+        for tag, pattern in enumerate(pattern_list):
+            # select relevant data for a given pattern
+            selected = df[
+                sorted([x for x in df.columns if re.match(pattern, x)])
+            ].copy()
+            selected.index = pd.PeriodIndex(df[MIDDLE_DATE], freq="D")
+            colors = colorise(selected.columns)
+
+            # calculate and plot LOWESS lines and raw data points
+            chart_lines = selected.apply(
+                calculate_lowess, axis=0, raw=False
+            ).interpolate()
+            _, ax = initiate_plot()
+            for line, color in zip(selected.columns, colors):
+                chart_lines[line].plot(ax=ax, c=color, label=line)
+                ax.scatter(selected.index, selected[line], c=color, s=5)
+
+            # manage default and additional arguments for finalise_plot()
+            defaults = {  # default arguments for finalise_plot()
+                "title": f"{LOWESS_DAYS}-day Localised Regression: {label.title()}",
+                "xlabel": None,
+                "ylabel": "Per cent",
+                "tag": str(tag),
+                "y50": True,
+                "y0": True,
+                "show": False,
+                "legend": LEGEND_SET,
+                **footers,
+            }
+            kwargs_copy, defaults = _generate_defaults(kwargs, defaults)
+            finalise_plot(ax, **defaults, **kwargs_copy)
