@@ -422,7 +422,7 @@ def calculate_lowess(
     return lowess_series
 
 
-def _generate_defaults(
+def generate_defaults(
     kwargs: dict,
     defaults: dict,
 ) -> tuple[dict, dict]:
@@ -478,5 +478,5 @@ def plot_loess(
                 "legend": LEGEND_SET,
                 **footers,
             }
-            kwargs_copy, defaults = _generate_defaults(kwargs, defaults)
+            kwargs_copy, defaults = generate_defaults(kwargs, defaults)
             finalise_plot(ax, **defaults, **kwargs_copy)
