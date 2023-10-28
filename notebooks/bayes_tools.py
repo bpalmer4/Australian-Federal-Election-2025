@@ -81,7 +81,7 @@ def define_zs_model(  # zs = zero-sum (house effects)
         # --- Temporal voting-intention model
         # Guess a starting point for the random walk
         guess_first_n_polls = 5  # guess based on first n polls
-        guess_sigma = 15         # percent-points SD for initial guess
+        guess_sigma = 15  # percent-points SD for initial guess
         educated_guess = zero_centered_y[
             : min(guess_first_n_polls, len(zero_centered_y))
         ].mean()
@@ -124,7 +124,7 @@ def define_ra_model(  # ra = right anchored
     """PyMC model for pooling/aggregating voter opinion polls.
     Model assumes poll data (in percentage points)
     has been zero-centered (by subtracting the mean for
-    the series). Model anchors the last day of the random 
+    the series). Model anchors the last day of the random
     walk to the election result."""
 
     model = pm.Model()
@@ -132,7 +132,7 @@ def define_ra_model(  # ra = right anchored
         # --- Temporal voting-intention model
         # Guess a starting point for the random walk
         guess_first_n_polls = 5  # guess based on mean of first n polls
-        guess_sigma = 15         # percent-points SD for initial guess
+        guess_sigma = 15  # percent-points SD for initial guess
         educated_guess = zero_centered_y[
             : min(guess_first_n_polls, len(zero_centered_y))
         ].mean()

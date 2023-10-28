@@ -359,7 +359,7 @@ def retrieve(
     for file in directory.glob(f"*{capture_date}{FILE_TYPE}"):
         name = file.name.replace(f"-{capture_date}{FILE_TYPE}", "")
         df = pd.read_csv(file, index_col=0)
-        df[MIDDLE_DATE] = pd.PeriodIndex(df[MIDDLE_DATE], freq='D')
+        df[MIDDLE_DATE] = pd.PeriodIndex(df[MIDDLE_DATE], freq="D")
         data[name] = df
-        
+
     return data
