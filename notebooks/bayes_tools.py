@@ -16,6 +16,8 @@ QUANTS = (0.025, 0.1, 0.25, 0.75, 0.9, 0.975)
 def prepare_data_for_analysis(
     df: pd.DataFrame,
     column: str,
+    right_anchor: Optional[tuple[pd.Period, float]] = None,
+    left_anchor: Optional[tuple[pd.Period, float]] = None,
     verbose: bool = False,
 ) -> dict[str, Any]:
     """Prepare a dataframe column for Bayesian analysis."""
@@ -32,9 +34,16 @@ def prepare_data_for_analysis(
     n_polls = len(zero_centered_y)  ###
 
     # get our day-date mapping
-    day_zero = df[MIDDLE_DATE].min()
-    n_days = int((df[MIDDLE_DATE].max() - day_zero) / pd.Timedelta(days=1)) + 1
+    day_zero = left_anchor[0] if left_anchor is not None else df[MIDDLE_DATE].min()
+    last_day = right_anchor[0] if right_anchor is not None else df[MIDDLE_DATE].max()
+    n_days = int((last_day - day_zero) / pd.Timedelta(days=1)) + 1
     poll_day = ((df[MIDDLE_DATE] - day_zero) / pd.Timedelta(days=1)).astype(int)
+
+    # sanity checks
+    if left_anchor is not None:
+        assert day_zero <= df[MIDDLE_DATE].min()
+    if right_anchor is not None:
+        assert last_day >= df[MIDDLE_DATE].max()
 
     # get our poll-branding information
     poll_firm = df.Brand.astype("category").cat.codes
@@ -57,18 +66,17 @@ def prepare_data_for_analysis(
             f"Pollster map: {firm_map}\n"
             f"Polling days:\n{poll_day.values}\n"
         )
-
     return locals().copy()  # okay, this is a bit of a hack
 
 
 def define_model(
     inputs: dict[str, Any],
-    right_anchor: Optional[float] = None,  # None for zero-sum HE model
 ) -> pm.Model:
     """PyMC model for pooling/aggregating voter opinion polls.
     Model assumes poll data (in percentage points)
     has been zero-centered (by subtracting the mean for
-    the series). Model assumes that House Effects sum to zero."""
+    the series). Model can be either left or right anchored.
+    An unanchored model assumes that House Effects sum to zero."""
 
     # the model
     model = pm.Model()
@@ -76,29 +84,30 @@ def define_model(
         # --- Temporal voting-intention model
         # Guess a starting point for the random walk
         guess_first_n_polls = 5  # guess based on first n polls
-        guess_sigma = 15  # percent-points SD for initial guess
+        guess_sigma = 5  # percent-points SD for initial guess
         educated_guess = inputs["zero_centered_y"][
             : min(guess_first_n_polls, len(inputs["zero_centered_y"]))
         ].mean()
         start_dist = pm.Normal.dist(mu=educated_guess, sigma=guess_sigma)
         # Establish a Gaussian random walk ...
-        daily_innovation = 0.20  # from experience ... daily change in VI
         voting_intention = pm.GaussianRandomWalk(
             "voting_intention",
             mu=0,  # no drift in model
-            sigma=daily_innovation,
+            sigma=0.2,  # daily innovation - from experience - daily change in VI
             init_dist=start_dist,
             steps=inputs["n_days"],
         )
 
         # --- House effects model
-        house_effect_sigma = 15  # assume big house effects possible
-        if right_anchor is None:
+        house_effect_sigma = 5  # assume larger house effects possible
+        if inputs["right_anchor"] is None and inputs["left_anchor"] is None:
+            # assume house effects sum to zero
             house_effects = pm.ZeroSumNormal(
                 "house_effects", sigma=house_effect_sigma, shape=inputs["n_firms"]
             )
         else:
-            poll_error_sigma = 15  # assume big systemic poll error possible
+            # assume house effects sum to zero plus an error_offset
+            poll_error_sigma = 2  # assume smaller systemic poll error possible
             systemic_poll_error = pm.Normal(
                 "systemic_poll_error", mu=0, sigma=poll_error_sigma
             )
@@ -120,26 +129,35 @@ def define_model(
             sigma=inputs["measurement_error_sd"],
             observed=inputs["zero_centered_y"],
         )
-        if right_anchor is not None:
-            # --- there should be a better way to anchor.
+        if inputs["left_anchor"] is not None:
+            # --- there should be a better way to right anchor.
+            # --- NEED TO THINK ABOUT THIS SOME MORE.
+            pm.Normal(
+                "previous_election_observation",
+                mu=voting_intention[0],  # on the first day
+                sigma=0.001,  # near zero
+                observed=inputs["left_anchor"][1] + inputs["centre_offset"],
+            )
+        if inputs["right_anchor"] is not None:
+            # --- there should be a better way to right anchor.
             # --- NEED TO THINK ABOUT THIS SOME MORE.
             pm.Normal(
                 "election_observation",
                 mu=voting_intention[inputs["n_days"] - 1],
-                sigma=0.0000001,  # near zero
-                observed=right_anchor,
+                sigma=0.001,  # near zero
+                observed=inputs["right_anchor"][1] + inputs["centre_offset"],
             )
-
+    # --- end of model
     return model
 
 
 def draw_samples(
     model: pm.Model,
-    draws: int = 1_000,
-    tune: int = 1_000,
+    draws: int = 2_000,
+    tune: int = 2_000,
     n_cores: int = 10,
 ) -> az.InferenceData:  # tuple[az.InferenceData, pd.DataFrame]:
-    """Draw samples from the posterior distribution."""
+    """Draw samples from the posterior distribution (ie. run the model)."""
 
     with model:
         trace = pm.sample(
@@ -148,6 +166,7 @@ def draw_samples(
             progressbar=True,
             cores=n_cores,
             chains=n_cores,
+            nuts={"max_treedepth": 12},  # be careful: there may be dragons
             return_inferencedata=True,
         )
         az.plot_trace(trace)
@@ -194,8 +213,8 @@ def plot_aggregation(
     line_color: str,
     point_color: str,
     **kwargs,
-) -> None:
-    """Plot the pooled poll."""
+) -> pd.Series:
+    """Plot the pooled poll. Return the mean series."""
 
     # get the data
     grw = get_var_as_frame(trace, "voting_intention") - inputs["centre_offset"]
@@ -245,6 +264,8 @@ def plot_aggregation(
     kwargs_copy, defaults = plotting.generate_defaults(kwargs, defaults)
     plotting.finalise_plot(axes, **defaults, **kwargs_copy)
 
+    return grw_summary["mean"]
+
 
 def plot_house_effects(
     inputs: dict[str, Any],
@@ -285,7 +306,6 @@ def plot_house_effects(
     axes.tick_params(axis="y", labelsize="small")
     axes.axvline(0, c="darkgrey", lw=1)
     defaults = {  # default arguments for finalise_plot()
-        "title": f"House effects: {inputs['column']}",
         "xlabel": "Relative effect (percentage points)",
         "ylabel": None,
         "show": False,
