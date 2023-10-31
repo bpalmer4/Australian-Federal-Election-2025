@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import arviz as az
 import pymc as pm
+import pytensor.tensor as pt
 
 from common import MIDDLE_DATE
 import plotting
@@ -13,6 +14,7 @@ import plotting
 QUANTS = (0.025, 0.1, 0.25, 0.75, 0.9, 0.975)
 
 
+# --- Models for voting intention ...
 def prepare_data_for_analysis(
     df: pd.DataFrame,
     column: str,
@@ -69,36 +71,37 @@ def prepare_data_for_analysis(
     return locals().copy()  # okay, this is a bit of a hack
 
 
-def define_model(
-    inputs: dict[str, Any],
-) -> pm.Model:
-    """PyMC model for pooling/aggregating voter opinion polls.
-    Model assumes poll data (in percentage points)
-    has been zero-centered (by subtracting the mean for
-    the series). Model can be either left or right anchored.
-    An unanchored model assumes that House Effects sum to zero."""
+def guess_start(inputs: dict[str, Any]) -> np.float64:
+    """Guess a starting point for the random walk,
+    based on early poll results."""
 
-    # the model
-    model = pm.Model()
+    guess_first_n_polls = 5  # guess based on first n polls
+    educated_guess = inputs["zero_centered_y"][
+        : min(guess_first_n_polls, len(inputs["zero_centered_y"]))
+    ].mean()
+    return educated_guess
+
+
+def temporal_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
+    """The temporal (hidden daily voting intention) model."""
+
     with model:
-        # --- Temporal voting-intention model
-        # Guess a starting point for the random walk
-        guess_first_n_polls = 5  # guess based on first n polls
-        guess_sigma = 5  # percent-points SD for initial guess
-        educated_guess = inputs["zero_centered_y"][
-            : min(guess_first_n_polls, len(inputs["zero_centered_y"]))
-        ].mean()
-        start_dist = pm.Normal.dist(mu=educated_guess, sigma=guess_sigma)
-        # Establish a Gaussian random walk ...
+        guess_sigma = 10  # percent-points SD for initial guess
+        start_dist = pm.Normal.dist(mu=guess_start(inputs), sigma=guess_sigma)
         voting_intention = pm.GaussianRandomWalk(
             "voting_intention",
             mu=0,  # no drift in model
-            sigma=0.2,  # daily innovation - from experience - daily change in VI
+            sigma=0.175,  # daily innovation - daily change in VI - CRITICAL
             init_dist=start_dist,
             steps=inputs["n_days"],
         )
+    return voting_intention
 
-        # --- House effects model
+
+def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
+    """The house effects model."""
+
+    with model:
         house_effect_sigma = 5  # assume larger house effects possible
         if inputs["right_anchor"] is None and inputs["left_anchor"] is None:
             # assume house effects sum to zero
@@ -106,22 +109,21 @@ def define_model(
                 "house_effects", sigma=house_effect_sigma, shape=inputs["n_firms"]
             )
         else:
-            # assume house effects sum to zero plus an error_offset
-            poll_error_sigma = 2  # assume smaller systemic poll error possible
-            systemic_poll_error = pm.Normal(
-                "systemic_poll_error", mu=0, sigma=poll_error_sigma
+            house_effects = pm.Normal(
+                "house_effects", sigma=house_effect_sigma, shape=inputs["n_firms"]
             )
-            zero_sum_house_effects = pm.ZeroSumNormal(
-                "zero_sum_house_effects",
-                sigma=house_effect_sigma,
-                shape=inputs["n_firms"],
-            )
-            house_effects = pm.Deterministic(
-                "house_effects",
-                var=zero_sum_house_effects + systemic_poll_error,
-            )
+    return house_effects
 
-        # --- Observational model (likelihood)
+
+def observational_model(
+    inputs: dict[str, Any],
+    model: pm.Model,
+    voting_intention: pt.TensorVariable,
+    house_effects: pt.TensorVariable,
+) -> None:
+    """Observational model (likelihood)."""
+
+    with model:
         pm.Normal(
             "polling_observations",
             mu=voting_intention[inputs["poll_day"].values]
@@ -130,12 +132,12 @@ def define_model(
             observed=inputs["zero_centered_y"],
         )
         if inputs["left_anchor"] is not None:
-            # --- there should be a better way to right anchor.
+            # --- there should be a better way to left anchor.
             # --- NEED TO THINK ABOUT THIS SOME MORE.
             pm.Normal(
                 "previous_election_observation",
-                mu=voting_intention[0],  # on the first day
-                sigma=0.001,  # near zero
+                mu=voting_intention[0],
+                sigma=0.001,
                 observed=inputs["left_anchor"][1] + inputs["centre_offset"],
             )
         if inputs["right_anchor"] is not None:
@@ -147,34 +149,68 @@ def define_model(
                 sigma=0.001,  # near zero
                 observed=inputs["right_anchor"][1] + inputs["centre_offset"],
             )
-    # --- end of model
+
+
+def the_model(inputs: dict[str, Any]) -> pm.Model:
+    """PyMC model for pooling/aggregating voter opinion polls,
+    using a Gaussian raandom walk. Model assumes poll data
+    (in percentage points) has been zero-centered (by
+    subtracting the mean for the series). Model can be
+    left or right anchored. Unanchored model assumes house
+    effects sum to zero."""
+
+    model = pm.Model()
+    voting_intention = temporal_model(inputs, model)
+    house_effects = house_effects_model(inputs, model)
+    observational_model(inputs, model, voting_intention, house_effects)
+    return model
+
+
+def la_model(inputs: dict[str, Any]) -> pm.Model:
+    """Special left_anchor model which captures systemic polling error."""
+
+    assert inputs["left_anchor"] is not None
+    model = pm.Model()
+    voting_intention = temporal_model(inputs, model)
+
+    with model:
+        poll_error_sigma = 2  # assume smaller systemic poll error possible
+        house_effect_sigma = 5  # assume larger error on individual house effects
+        systemic_poll_error = pm.Normal(
+            "systemic_poll_error", mu=0, sigma=poll_error_sigma
+        )
+        zero_sum_house_effects = pm.ZeroSumNormal(
+            "zero_sum_house_effects",
+            sigma=house_effect_sigma,
+            shape=inputs["n_firms"],
+        )
+        house_effects = pm.Deterministic(
+            "house_effects",
+            var=zero_sum_house_effects + systemic_poll_error,
+        )
+
+    observational_model(inputs, model, voting_intention, house_effects)
     return model
 
 
 def draw_samples(
-    model: pm.Model,
-    draws: int = 2_000,
-    tune: int = 2_000,
-    n_cores: int = 10,
+    model: pm.Model, n_cores: int = 10, **kwargs
 ) -> az.InferenceData:  # tuple[az.InferenceData, pd.DataFrame]:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
     with model:
         trace = pm.sample(
-            draws=draws,
-            tune=tune,
             progressbar=True,
             cores=n_cores,
             chains=n_cores,
-            nuts={"max_treedepth": 12},  # be careful: there may be dragons
             return_inferencedata=True,
+            **kwargs,
         )
         az.plot_trace(trace)
-        # summary = az.summary(trace)
-
-    return trace  # , summary
+    return trace
 
 
+#  --- Plotting support ...
 def get_var_as_frame(inferencedata, variable_name):
     """Return a dataframe - column(s) are variables - rows are draws"""
     return pd.DataFrame(
