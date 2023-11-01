@@ -1,5 +1,5 @@
 """Tools for doing Bayesian aggregation of polls"""
-from typing import Optional, Any
+from typing import Optional, Any, Iterable
 
 import pandas as pd
 import numpy as np
@@ -83,15 +83,20 @@ def guess_start(inputs: dict[str, Any]) -> np.float64:
 
 
 def temporal_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
-    """The temporal (hidden daily voting intention) model."""
+    """The temporal (hidden daily voting intention) model.
+       Note: setting the innovation through a distribution 
+       often results in a model that needs many samples to 
+       overcome poor traversal of the posterior."""
 
     with model:
         guess_sigma = 10  # percent-points SD for initial guess
         start_dist = pm.Normal.dist(mu=guess_start(inputs), sigma=guess_sigma)
+        innovation = 0.175  # set by hand or by distribution ...
+        # innovation = pm.TruncatedNormal("innovation", lower=0.01, upper=0.5, mu=0.175, sigma=0.1)
         voting_intention = pm.GaussianRandomWalk(
             "voting_intention",
             mu=0,  # no drift in model
-            sigma=0.175,  # daily innovation - daily change in VI - CRITICAL
+            sigma=innovation,
             init_dist=start_dist,
             steps=inputs["n_days"],
         )
@@ -350,3 +355,31 @@ def plot_house_effects(
     }
     kwargs_copy, defaults = plotting.generate_defaults(kwargs, defaults)
     plotting.finalise_plot(axes, **defaults, **kwargs_copy)
+
+
+def plot_univariate(
+    inputs: dict[str, Any],
+    trace: az.InferenceData,
+    var_names: str | Iterable[str],
+    hdi_prob: float = 0.80,
+    title_stem: str = "",
+    **kwargs,
+) -> None:
+    """Plot univariate posterior variables."""
+
+    if isinstance(var_names, str):
+        var_names = (var_names,)
+
+    for variable in var_names:
+        if variable not in trace.posterior:
+            continue
+        axes = az.plot_posterior(trace, var_names=variable, hdi_prob=hdi_prob)
+        defaults = {  # default arguments for finalise_plot()
+            "xlabel": None,
+            "ylabel": None,
+            "title":f"{title_stem}{variable}",
+            "show": False,
+            **plotting.footers,
+        }
+        kwargs_copy, defaults = plotting.generate_defaults(kwargs, defaults)
+        plotting.finalise_plot(axes, **defaults, **kwargs_copy)
