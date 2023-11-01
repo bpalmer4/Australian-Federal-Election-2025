@@ -319,6 +319,28 @@ def distribute_undecideds(
     return table
 
 
+def methodology(
+    data: dict[str, pd.DataFrame],
+    effective_date: pd.Period,
+    change_from: str,
+    change_to: str,
+) -> dict[str, pd.DataFrame]:
+    """Mark methodological changes in the data by changing
+    the firm/brand of the pollster in the data."""
+
+    for label, df in data.items():
+        branding = "Brand", "Firm"
+        for brand in branding:
+            if brand not in df.columns:
+                continue
+            mask = df[brand].str.contains(change_from) & (
+                df[MIDDLE_DATE] >= effective_date
+            )
+            df.loc[mask, brand] = change_to
+            data[label] = df
+    return data
+
+
 # --- DATA STORAGE ---
 DATA_DIR = "../data/"
 FILE_TYPE = ".csv"
