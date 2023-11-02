@@ -29,11 +29,11 @@ def prepare_data_for_analysis(
         MIDDLE_DATE
     ].is_monotonic_increasing, "Data must be in ascending date order"
 
-    # get our zero centered observations
-    y = df[column].dropna()
+    # get our zero centered observations in the range -1.0 to 1.0
+    y = df[column].dropna()  # assume data in percentage points (0..100)
     centre_offset = -y.mean()
     zero_centered_y = y + centre_offset
-    n_polls = len(zero_centered_y)  ###
+    n_polls = len(zero_centered_y)
 
     # get our day-date mapping
     day_zero = left_anchor[0] if left_anchor is not None else df[MIDDLE_DATE].min()
@@ -53,8 +53,8 @@ def prepare_data_for_analysis(
     firm_map = {code: firm for firm, code in zip(df.Brand, poll_firm)}
 
     # measurement error
-    assumed_sample_size = 1000
-    measurement_error_sd = np.sqrt((50 * 50) / assumed_sample_size)
+    assumed_sample_size = 750
+    measurement_error_sd = np.sqrt((50.0 * 50.0) / assumed_sample_size)
 
     # Information
     if verbose:
@@ -84,15 +84,16 @@ def guess_start(inputs: dict[str, Any]) -> np.float64:
 
 def temporal_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
     """The temporal (hidden daily voting intention) model.
-       Note: setting the innovation through a distribution 
-       often results in a model that needs many samples to 
-       overcome poor traversal of the posterior."""
+    Note: setting the innovation through a distribution
+    often results in a model that needs many samples to
+    overcome poor traversal of the posterior."""
 
     with model:
-        guess_sigma = 10  # percent-points SD for initial guess
-        start_dist = pm.Normal.dist(mu=guess_start(inputs), sigma=guess_sigma)
-        innovation = 0.175  # set by hand or by distribution ...
-        # innovation = pm.TruncatedNormal("innovation", lower=0.01, upper=0.5, mu=0.175, sigma=0.1)
+        init_guess_sigma = 5.0  # SD for initial guess
+        start_dist = pm.Normal.dist(mu=guess_start(inputs), sigma=init_guess_sigma)
+        innovation = 0.175  # to set by hand, comment out the next line
+        # innovation = pm.TruncatedNormal("innovation", lower=0.0001, upper=0.5,
+        #                                 mu=innovation, sigma=0.1)
         voting_intention = pm.GaussianRandomWalk(
             "voting_intention",
             mu=0,  # no drift in model
@@ -107,7 +108,7 @@ def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVar
     """The house effects model."""
 
     with model:
-        house_effect_sigma = 5  # assume larger house effects possible
+        house_effect_sigma = 5.0
         if inputs["right_anchor"] is None and inputs["left_anchor"] is None:
             # assume house effects sum to zero
             house_effects = pm.ZeroSumNormal(
@@ -142,7 +143,7 @@ def observational_model(
             pm.Normal(
                 "previous_election_observation",
                 mu=voting_intention[0],
-                sigma=0.001,
+                sigma=0.001,  # near zero
                 observed=inputs["left_anchor"][1] + inputs["centre_offset"],
             )
         if inputs["right_anchor"] is not None:
@@ -162,7 +163,9 @@ def the_model(inputs: dict[str, Any]) -> pm.Model:
     (in percentage points) has been zero-centered (by
     subtracting the mean for the series). Model can be
     left or right anchored. Unanchored model assumes house
-    effects sum to zero."""
+    effects sum to zero.
+    Note: looked at reparameterizing the data in decimal fractions,
+    but that did not yield any benefits."""
 
     model = pm.Model()
     voting_intention = temporal_model(inputs, model)
@@ -358,14 +361,14 @@ def plot_house_effects(
 
 
 def plot_univariate(
-    inputs: dict[str, Any],
     trace: az.InferenceData,
     var_names: str | Iterable[str],
     hdi_prob: float = 0.80,
     title_stem: str = "",
     **kwargs,
 ) -> None:
-    """Plot univariate posterior variables."""
+    """Plot univariate posterior variables. Fail quietly if
+    a variable name is not found in the posterior trace."""
 
     if isinstance(var_names, str):
         var_names = (var_names,)
@@ -377,7 +380,7 @@ def plot_univariate(
         defaults = {  # default arguments for finalise_plot()
             "xlabel": None,
             "ylabel": None,
-            "title":f"{title_stem}{variable}",
+            "title": f"{title_stem}{variable}",
             "show": False,
             **plotting.footers,
         }
