@@ -157,9 +157,9 @@ def observational_model(
             )
 
 
-def the_model(inputs: dict[str, Any]) -> pm.Model:
+def grw_model(inputs: dict[str, Any]) -> pm.Model:
     """PyMC model for pooling/aggregating voter opinion polls,
-    using a Gaussian raandom walk. Model assumes poll data
+    using a Gaussian random walk. Model assumes poll data
     (in percentage points) has been zero-centered (by
     subtracting the mean for the series). Model can be
     left or right anchored. Unanchored model assumes house
@@ -174,8 +174,10 @@ def the_model(inputs: dict[str, Any]) -> pm.Model:
     return model
 
 
-def la_model(inputs: dict[str, Any]) -> pm.Model:
-    """Special left_anchor model which captures systemic polling error."""
+def grw_la_model(inputs: dict[str, Any]) -> pm.Model:
+    """A more nuanced left_anchor model which captures the 
+    systemic polling error in the posterior. But otherwise,
+    much the same as the left anchor version of grw_model()."""
 
     assert inputs["left_anchor"] is not None
     model = pm.Model()
@@ -203,19 +205,19 @@ def la_model(inputs: dict[str, Any]) -> pm.Model:
 
 def draw_samples(
     model: pm.Model, n_cores: int = 10, **kwargs
-) -> az.InferenceData:  # tuple[az.InferenceData, pd.DataFrame]:
+) -> az.InferenceData:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
     with model:
-        trace = pm.sample(
+        idata = pm.sample(
             progressbar=True,
             cores=n_cores,
             chains=n_cores,
             return_inferencedata=True,
             **kwargs,
         )
-        az.plot_trace(trace)
-    return trace
+        az.plot_trace(idata)
+    return idata
 
 
 #  --- Plotting support ...
@@ -253,7 +255,7 @@ def get_quant_iterator(quants):
 
 def plot_aggregation(
     inputs: dict[str, Any],
-    trace: az.InferenceData,
+    idata: az.InferenceData,
     line_color: str,
     point_color: str,
     **kwargs,
@@ -261,7 +263,7 @@ def plot_aggregation(
     """Plot the pooled poll. Return the mean series."""
 
     # get the data
-    grw = get_var_as_frame(trace, "voting_intention") - inputs["centre_offset"]
+    grw = get_var_as_frame(idata, "voting_intention") - inputs["centre_offset"]
     grw.columns = pd.period_range(
         start=inputs["day_zero"], periods=inputs["n_days"] + 1
     )
@@ -313,7 +315,7 @@ def plot_aggregation(
 
 def plot_house_effects(
     inputs: dict[str, Any],
-    trace: az.InferenceData,
+    idata: az.InferenceData,
     line_color: str,
     point_color: str,
     **kwargs,
@@ -321,7 +323,7 @@ def plot_house_effects(
     """Plot the House effects."""
 
     # get the relevant data
-    h_eff = get_var_as_frame(trace, "house_effects")
+    h_eff = get_var_as_frame(idata, "house_effects")
     h_eff.columns = h_eff.columns.map(inputs["firm_map"])
     h_eff_summary = quants_and_mean(h_eff, QUANTS)
     h_eff_summary = h_eff_summary.sort_values(by="mean")
@@ -361,22 +363,22 @@ def plot_house_effects(
 
 
 def plot_univariate(
-    trace: az.InferenceData,
+    idata: az.InferenceData,
     var_names: str | Iterable[str],
     hdi_prob: float = 0.80,
     title_stem: str = "",
     **kwargs,
 ) -> None:
     """Plot univariate posterior variables. Fail quietly if
-    a variable name is not found in the posterior trace."""
+    a variable name is not found in the posterior idata."""
 
     if isinstance(var_names, str):
         var_names = (var_names,)
 
     for variable in var_names:
-        if variable not in trace.posterior:
+        if variable not in idata.posterior:
             continue
-        axes = az.plot_posterior(trace, var_names=variable, hdi_prob=hdi_prob)
+        axes = az.plot_posterior(idata, var_names=variable, hdi_prob=hdi_prob)
         defaults = {  # default arguments for finalise_plot()
             "xlabel": None,
             "ylabel": None,
