@@ -11,6 +11,7 @@ from typing import Iterable, Optional
 
 # data science imports
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import pandas as pd
 import statsmodels.api as sm
 
@@ -102,6 +103,17 @@ def amalgamate_other(
 
 # --- colors for different types of line graphs
 
+def get_gp_palette(party_text: str) -> str:
+    if "alp" in party_text.lower():
+        return "Reds"
+    if "l/np" in party_text.lower():
+        return "Blues"
+    if "grn" in party_text.lower():
+        return "Greens"
+    if "oth" in party_text.lower():
+        return "YlOrBr"
+    return "viridis_r"
+    
 
 def get_color(s: str) -> str:
     """Return a color for a party label."""
@@ -119,7 +131,7 @@ def get_color(s: str) -> str:
             "alp",
             "labor",
             "albanese",
-        ): "crimson",
+        ): "red",
         (
             "grn",
             "green",
@@ -176,7 +188,7 @@ _annotation_kwargs = ("lfooter", "rfooter", "lheader", "rheader")
 
 _file_kwargs = ("pre_tag", "tag", "file_type", "dpi")
 _fig_kwargs = ("figsize", "show")
-_oth_kwargs = ("zero_y", "y0", "y50", "dont_save", "dont_close")
+_oth_kwargs = ("zero_y", "y0", "y50", "dont_save", "dont_close", "concise_dates")
 _ACCEPTABLE_KWARGS = frozenset(
     _value_kwargs
     + _splat_kwargs
@@ -279,6 +291,12 @@ def _apply_kwargs(axes, **kwargs) -> None:
     if check_kwargs("y50"):
         if low < 50 < high:
             axes.axhline(y=50, lw=0.75, c="#555555")
+
+    if check_kwargs("concise_dates"):
+        locator = mdates.AutoDateLocator(minticks=3, maxticks=11)
+        formatter = mdates.ConciseDateFormatter(locator)
+        axes.xaxis.set_major_locator(locator)
+        axes.xaxis.set_major_formatter(formatter)
 
 
 # private
@@ -394,6 +412,23 @@ def annotate_endpoint(ax, series: pd.Series, end=None, rot=90):
     )
 
 
+def annotate_min_max_end(ax: plt.Axes, series: pd.Series) -> None:
+    """To do."""
+
+    min_y, max_y = ax.get_ylim()
+    halfway = min_y + ((max_y - min_y) / 2)
+    minimum = series.idxmin(), series.min()
+    maximum = series.idxmax(), series.max()
+    end_point = series.index[-1], series.iloc[-1]
+    for x, y in (minimum, maximum, end_point):
+        ax.axvline(x, lw=1, color='darkgrey')
+        pos = (
+            {'y': max_y, 'va': 'top',} if y < halfway 
+            else {'y': min_y, 'va': 'bottom',}
+        )
+        ax.text(x=x, s=f"{y:.1f}", ha='right', color='black', fontsize=8, rotation=90, **pos)
+
+
 def add_data_points_by_pollster(
     ax,
     df,
@@ -408,7 +443,7 @@ def add_data_points_by_pollster(
             poll[column].sum(axis=1, skipna=True)
             if isinstance(column, list) else poll[column]
         )
-        ax.scatter(poll[MIDDLE_DATE], series, marker=MARKERS[i], c=p_color, s=20, label=brand)
+        ax.scatter(poll[MIDDLE_DATE], series, marker=MARKERS[i], c=p_color, s=20, label=brand, zorder=100)
 
 
 # --- Localised regression charts
@@ -483,6 +518,8 @@ def plot_loess(
             for line, color in zip(selected.columns, colors):
                 chart_lines[line].plot(ax=ax, c=color, label=line)
                 ax.scatter(selected.index, selected[line], c=color, s=5)
+                if len(selected.columns) == 1:
+                    annotate_min_max_end(ax, chart_lines[line]) 
 
             # manage default and additional arguments for finalise_plot()
             defaults = {  # default arguments for finalise_plot()
