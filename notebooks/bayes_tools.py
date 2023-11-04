@@ -1,21 +1,18 @@
 """Tools for doing Bayesian aggregation of polls"""
-from typing import Optional, Any, Iterable
+from typing import Any, Iterable, Optional
 
-import pandas as pd
-import numpy as np
 import arviz as az
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import pymc as pm
 import pytensor.tensor as pt
-import matplotlib.pyplot as plt
 
-from common import MIDDLE_DATE
 import plotting
+from common import MIDDLE_DATE
 
 
-QUANTS = (0.025, 0.1, 0.25, 0.75, 0.9, 0.975)
-
-
-# --- Models for voting intention ...
+# --- Data preparation
 def prepare_data_for_analysis(
     df: pd.DataFrame,
     column: str,
@@ -23,26 +20,27 @@ def prepare_data_for_analysis(
     left_anchor: Optional[tuple[pd.Period, float]] = None,
     verbose: bool = False,
 ) -> dict[str, Any]:
-    """Prepare a dataframe column for Bayesian analysis."""
+    """Prepare a dataframe column for Bayesian analysis.
+    Returns a python dict with all the necessary values within."""
 
     # make sure data is in date order
     assert df[
         MIDDLE_DATE
     ].is_monotonic_increasing, "Data must be in ascending date order"
 
-    # get our zero centered observations in the range -1.0 to 1.0
+    # get our zero centered observations
     y = df[column].dropna()  # assume data in percentage points (0..100)
     centre_offset = -y.mean()
     zero_centered_y = y + centre_offset
     n_polls = len(zero_centered_y)
 
-    # get our day-date mapping
+    # get our day-to-date mapping
     day_zero = left_anchor[0] if left_anchor is not None else df[MIDDLE_DATE].min()
     last_day = right_anchor[0] if right_anchor is not None else df[MIDDLE_DATE].max()
     n_days = int((last_day - day_zero) / pd.Timedelta(days=1)) + 1
     poll_date = df[MIDDLE_DATE]
     poll_day = ((df[MIDDLE_DATE] - day_zero) / pd.Timedelta(days=1)).astype(int)
-    poll_day_c_ = np.c_[poll_day]  # column vector of poll_days
+    poll_day_c_ = np.c_[poll_day]  # numpy column vector of poll_days
 
     # sanity checks
     if left_anchor is not None:
@@ -55,7 +53,7 @@ def prepare_data_for_analysis(
     n_firms = len(poll_firm.unique())
     firm_map = {code: firm for firm, code in zip(df.Brand, poll_firm)}
 
-    # measurement error
+    # measurement error - published sample sizes are rarely effective sample sizes
     assumed_sample_size = 750
     measurement_error_sd = np.sqrt((50.0 * 50.0) / assumed_sample_size)
 
@@ -85,9 +83,11 @@ def guess_start(inputs: dict[str, Any]) -> np.float64:
     return educated_guess
 
 
+# --- Bayesian models and model components
 def temporal_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
-    """The temporal (hidden daily voting intention) model.
-    Note: setting the innovation through a distribution
+    """The temporal (hidden daily voting intention) model component.
+    Used in Gaussian Random Walk (GRW) models.
+    Note: setting the innovation through a prior
     often results in a model that needs many samples to
     overcome poor traversal of the posterior."""
 
@@ -108,7 +108,8 @@ def temporal_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable
 
 
 def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
-    """The house effects model."""
+    """The house effects model. This model component is used with
+    both the GRW and Latent Gaussian Process (LGP) models."""
 
     with model:
         house_effect_sigma = 5.0
@@ -130,7 +131,8 @@ def observational_model(
     voting_intention: pt.TensorVariable,
     house_effects: pt.TensorVariable,
 ) -> None:
-    """Observational model (likelihood)."""
+    """Observational model (likelihood) component.
+    Used with GRW models."""
 
     with model:
         pm.Normal(
@@ -162,13 +164,11 @@ def observational_model(
 
 def grw_model(inputs: dict[str, Any]) -> pm.Model:
     """PyMC model for pooling/aggregating voter opinion polls,
-    using a Gaussian random walk. Model assumes poll data
+    using a Gaussian random walk (GRW). Model assumes poll data
     (in percentage points) has been zero-centered (by
     subtracting the mean for the series). Model can be
     left or right anchored. Unanchored model assumes house
-    effects sum to zero.
-    Note: looked at reparameterizing the data in decimal fractions,
-    but that did not yield any benefits."""
+    effects sum to zero."""
 
     model = pm.Model()
     voting_intention = temporal_model(inputs, model)
@@ -178,7 +178,7 @@ def grw_model(inputs: dict[str, Any]) -> pm.Model:
 
 
 def grw_la_model(inputs: dict[str, Any]) -> pm.Model:
-    """A more nuanced left_anchor model which captures the 
+    """A more nuanced left_anchor model which captures the
     systemic polling error in the posterior. But otherwise,
     much the same as the left anchor version of grw_model()."""
 
@@ -207,8 +207,10 @@ def grw_la_model(inputs: dict[str, Any]) -> pm.Model:
 
 
 def gp_prior(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
-    """Construct the Latent Gaussian Process prior.
-    The prior represents voting intention on a polling day."""
+    """Construct the Latent Gaussian Process (LGP) prior.
+    The prior represents voting intention on specific polling days.
+    Note: we have specified both the length_scale and eta, as this
+    both speeds up analysis, and reduced the number of bad runs."""
 
     with model:
         # we are going to help here ...
@@ -230,7 +232,7 @@ def gp_likelihood(
 
     with model:
         # Normal observational model
-        observed_polls = pm.Normal(
+        pm.Normal(
             "observed_polls",
             mu=gauss_prior + house_effects[inputs["poll_firm"]],
             sigma=inputs["measurement_error_sd"],
@@ -239,18 +241,18 @@ def gp_likelihood(
 
 
 def gp_model(inputs: dict[str, Any]) -> pm.Model:
-    """TO DO."""
+    """PyMC model for pooling/aggregating voter opinion polls,
+    using a Latent Gaussian Process (LGP)."""
 
     model = pm.Model()
     gauss_prior = gp_prior(inputs, model)
     house_effects = house_effects_model(inputs, model)
     gp_likelihood(inputs, model, gauss_prior, house_effects)
     return model
-    
 
-def draw_samples(
-    model: pm.Model, n_cores: int = 10, **kwargs
-) -> az.InferenceData:
+
+# --- Condition the model on the data
+def draw_samples(model: pm.Model, n_cores: int = 10, **kwargs) -> az.InferenceData:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
     with model:
@@ -262,6 +264,24 @@ def draw_samples(
             **kwargs,
         )
         az.plot_trace(idata)
+
+    # some wuick diagnostics
+    summary = az.summary(idata)
+    
+    RHAT = 1.03
+    mask = summary.r_hat > RHAT
+    if mask.any():
+        table = summary[mask]
+        print(f"\n--- CHECK --- r_hat for {table.index.values}")
+        display(table)
+
+    ESS = 100
+    mask = (summary.ess_tail <= ESS) | (summary.ess_bulk <= ESS)
+    if mask.any():
+        table = summary[mask]
+        print(f"\n--- CHECK --- ess for {table.index.values}")
+        display(table)
+
     return idata
 
 
@@ -301,7 +321,7 @@ COLOR_FRACS = [c * (1.0 - MIN_COLOR) + MIN_COLOR for c in _COLORS]
 
 
 def plot_voting(inputs, idata, var_name, palette, title_stem, **kwargs) -> pd.Series:
-    """Plot voting intention from a Latent Gaussian Process model."""
+    """Plot voting intention from both GRW and LGP models."""
 
     xdata = (
         az.extract(idata, var_names=var_name).transpose("sample", ...)
@@ -314,7 +334,7 @@ def plot_voting(inputs, idata, var_name, palette, title_stem, **kwargs) -> pd.Se
         reframe_gpp.index = pd.date_range(
             start=inputs["day_zero"].to_timestamp(), periods=inputs["n_days"] + 1
         )
-    fig, ax = plotting.initiate_plot()
+    _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
     x = reframe_gpp.index
     # plot a sample of samples
@@ -336,19 +356,20 @@ def plot_voting(inputs, idata, var_name, palette, title_stem, **kwargs) -> pd.Se
         ax,
         df=inputs["df"],
         column=inputs["column"],
-        p_color='#555555',
+        p_color="#555555",
     )
     middle = reframe_gpp.quantile(q=0.5, axis=1)
     plotting.annotate_min_max_end(ax, middle)
     lo, hi = ax.get_ylim()
     halfway = (hi - lo) / 2 + lo
-    space = 'lower' if middle.iloc[0] > halfway else 'upper'
+    space = "lower" if middle.iloc[0] > halfway else "upper"
     plotting.finalise_plot(
         ax,
         title=f"Voting intention: {title_stem}",
         ylabel="Per cent",
         y50=True,
-        legend=plotting.LEGEND_SET | {'fontsize': 'xx-small', 'loc': f'{space} left', 'ncols': 2},
+        legend=plotting.LEGEND_SET
+        | {"fontsize": "xx-small", "loc": f"{space} left", "ncols": 2},
         concise_dates=True,
         **kwargs,
     )
@@ -363,15 +384,16 @@ def plot_house_effects(
 ) -> None:
     """Plot the House effects."""
 
-    xdata = (
-        az.extract(idata, var_names="house_effects").transpose("sample", ...)
+    xdata = az.extract(idata, var_names="house_effects").transpose("sample", ...)
+    reframe = (
+        xdata.to_dataframe()["house_effects"]
+        .unstack(level=2)
+        .T.rename(index=inputs["firm_map"])
     )
-    reframe = xdata.to_dataframe()["house_effects"].unstack(level=2).T
-    reframe = reframe.rename(index=inputs["firm_map"])
     middle = reframe.quantile(0.5, axis=1).sort_values()
     reframe = reframe.reindex(middle.index)
 
-    fig, ax = plotting.initiate_plot()
+    _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
     x = reframe.index
 
@@ -387,11 +409,19 @@ def plot_house_effects(
             left=lower,
             color=cmap(color),
             label=label,
-            zorder = i+1
+            zorder=i + 1,
         )
     for index, value in middle.items():
-        ax.text(s=f"{value:.1f}", x=value, y=index, ha="center", 
-                    va="center", fontsize=10, color="white", zorder = i+2)
+        ax.text(
+            s=f"{value:.1f}",
+            x=value,
+            y=index,
+            ha="center",
+            va="center",
+            fontsize=10,
+            color="white",
+            zorder=i + 2,
+        )
     ax.tick_params(axis="y", labelsize="small")
     ax.axvline(0, c="darkgrey", lw=1)
     defaults = {  # default arguments for finalise_plot()
