@@ -72,6 +72,7 @@ def prepare_data_for_analysis(
     return locals().copy()  # okay, this is a bit of a hack
 
 
+# --- Bayesian models and model components
 def guess_start(inputs: dict[str, Any]) -> np.float64:
     """Guess a starting point for the random walk,
     based on early poll results."""
@@ -83,7 +84,6 @@ def guess_start(inputs: dict[str, Any]) -> np.float64:
     return educated_guess
 
 
-# --- Bayesian models and model components
 def temporal_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
     """The temporal (hidden daily voting intention) model component.
     Used in Gaussian Random Walk (GRW) models.
@@ -109,7 +109,7 @@ def temporal_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable
 
 def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
     """The house effects model. This model component is used with
-    both the GRW and Latent Gaussian Process (LGP) models."""
+    both the GRW and Gaussian Process (GP) models."""
 
     with model:
         house_effect_sigma = 5.0
@@ -206,16 +206,35 @@ def grw_la_model(inputs: dict[str, Any]) -> pm.Model:
     return model
 
 
-def gp_prior(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
-    """Construct the Latent Gaussian Process (LGP) prior.
-    The prior represents voting intention on specific polling days.
-    Note: we have specified both the length_scale and eta, as this
-    both speeds up analysis, and reduced the number of bad runs."""
+def gp_prior(
+    inputs: dict[str, Any], 
+    model: pm.Model,
+    length_scale: Optional[float] = None,
+    eta: Optional[float] = None,
+) -> pt.TensorVariable:
+    """Construct the Gaussian Process (GP) latent variable model prior.
+    The prior reflects voting intention on specific polling days.
+    
+    Note: Reasonably smooth looking plots only emerge with a lenjth_scale
+    greater than (say) 15. Divergences occur when eta resolves as being
+    close to zero, (which is obvious when you think about it, but also 
+    harder to avoid with series that are fairly flat). To address
+    these sampling issues, we give the gamma distribution a higher alpha,
+    as the mean of the gamma distribution is a/b. And we truncate eta to
+    well avoid zero (noting eta is squared before being multiplied by the
+    covariance matrix).
+    
+    Also note: for quick test runs, length_scale and eta can be fixed
+    to (say) 20 and 1.2 respectively. With both specified, the model runs
+    in around 1.4 seconds. With one or both unspecified, it takes about 
+    7 minutes per run."""
 
     with model:
-        # we are going to help here ...
-        length_scale = 30  # pm.Gamma("length", alpha=2, beta=1)
-        eta = 1.2  # pm.HalfNormal("eta", sigma=5)
+        if length_scale is None:
+            gamma_hint = {"alpha": 20, "beta": 1}  # ideally a=20, b=1
+            length_scale = pm.Gamma("length_scale", **gamma_hint)
+        if eta is None:
+            eta = pm.TruncatedNormal("eta", mu=1, sigma=5, lower=0.5, upper=20)
         cov = eta**2 * pm.gp.cov.ExpQuad(1, length_scale)
         gp = pm.gp.Latent(cov_func=cov)
         gauss_prior = gp.prior("gauss_prior", X=inputs["poll_day_c_"])
@@ -228,7 +247,7 @@ def gp_likelihood(
     gauss_prior: pt.TensorVariable,
     house_effects: pt.TensorVariable,
 ) -> None:
-    """Observational model (likelihood) - Latent Gaussian Process model."""
+    """Observational model (likelihood) - Gaussian Process model."""
 
     with model:
         # Normal observational model
@@ -240,18 +259,48 @@ def gp_likelihood(
         )
 
 
-def gp_model(inputs: dict[str, Any]) -> pm.Model:
+def gp_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
     """PyMC model for pooling/aggregating voter opinion polls,
-    using a Latent Gaussian Process (LGP)."""
+    using a Gaussian Process (GP). Note: kwargs allows one to pass
+    length_scale and eta to gp_prior()."""
 
     model = pm.Model()
-    gauss_prior = gp_prior(inputs, model)
+    gauss_prior = gp_prior(inputs, model, **kwargs)
     house_effects = house_effects_model(inputs, model)
     gp_likelihood(inputs, model, gauss_prior, house_effects)
     return model
 
 
 # --- Condition the model on the data
+def report_glitches(idata: az.InferenceData) -> None:
+    """Display some quick summary diagnostics."""
+
+    def check(name: str, mask: pd.Series, summary: pd.DataFrame) -> None:
+        if mask.any():
+            table = summary[mask]
+            print(f"\n--- CHECK --- {name} for {table.index.values}")
+            display(table)
+
+    summary = az.summary(idata)
+
+    max_r_hat = 1.01
+    print(f"Maximum r_hat: {summary.r_hat.max()}")
+    check("r_hat", summary.r_hat > max_r_hat, summary)
+
+    min_ess = 500
+    print(f"Minimum ess: {summary[['ess_tail', 'ess_bulk']].min().min()}")
+    mask = (summary.ess_tail <= min_ess) | (summary.ess_bulk <= min_ess)
+    check("ess", mask, summary)
+
+    try:
+        if (diverging_count := np.sum(idata.sample_stats.diverging)) > 0:
+            print(f"\n--- CHECK --- There were {int(diverging_count)} divergences")
+    except (ValueError, AttributeError):  # No sample_stats, or no `.diverging`
+        diverging_count = 0
+    if not diverging_count:
+        print("No divergences detected in the Inference Data")
+
+
 def draw_samples(model: pm.Model, n_cores: int = 10, **kwargs) -> az.InferenceData:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
@@ -264,24 +313,7 @@ def draw_samples(model: pm.Model, n_cores: int = 10, **kwargs) -> az.InferenceDa
             **kwargs,
         )
         az.plot_trace(idata)
-
-    # some wuick diagnostics
-    summary = az.summary(idata)
-    
-    RHAT = 1.03
-    mask = summary.r_hat > RHAT
-    if mask.any():
-        table = summary[mask]
-        print(f"\n--- CHECK --- r_hat for {table.index.values}")
-        display(table)
-
-    ESS = 100
-    mask = (summary.ess_tail <= ESS) | (summary.ess_bulk <= ESS)
-    if mask.any():
-        table = summary[mask]
-        print(f"\n--- CHECK --- ess for {table.index.values}")
-        display(table)
-
+    report_glitches(idata)
     return idata
 
 
@@ -320,36 +352,54 @@ MIN_COLOR = 0.25
 COLOR_FRACS = [c * (1.0 - MIN_COLOR) + MIN_COLOR for c in _COLORS]
 
 
-def plot_voting(inputs, idata, var_name, palette, title_stem, **kwargs) -> pd.Series:
-    """Plot voting intention from both GRW and LGP models."""
+def _get_var(var_name: str, idata: az.InferenceData) -> pd.DataFrame:
+    """Extract the chains/draws for a specified var_name."""
 
-    xdata = (
-        az.extract(idata, var_names=var_name).transpose("sample", ...)
-        - inputs["centre_offset"]
+    return (
+        az.extract(idata, var_names=var_name)
+        .transpose("sample", ...)
+        .to_dataframe()[var_name]
+        .unstack(level=2)
+        .T
     )
-    reframe_gpp = xdata.to_dataframe()[var_name].unstack(level=2).T
-    if len(reframe_gpp) == inputs["n_polls"]:
-        reframe_gpp.index = [x.to_timestamp() for x in inputs["poll_date"]]
-    else:
-        reframe_gpp.index = pd.date_range(
+
+
+def plot_voting(inputs, idata, var_name, palette, title_stem, **kwargs) -> pd.Series:
+    """Plot voting intention from both GRW and GP models."""
+
+    # get the relevant data as a DataFrame
+    df = _get_var(var_name, idata) - inputs["centre_offset"]
+    df.index = (
+        [x.to_timestamp() for x in inputs["poll_date"]]
+        if len(df) == inputs["n_polls"]
+        else pd.date_range(
             start=inputs["day_zero"].to_timestamp(), periods=inputs["n_days"] + 1
         )
+    )
+
+    # make the plot
     _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
-    x = reframe_gpp.index
-    # plot a sample of samples
-    for y in reframe_gpp.sample(n=100, axis=1):
+    x = df.index
+    # plot a sample of the samples
+    for y in df.sample(n=100, axis=1):
         ax.plot(
-            x, reframe_gpp[y], color=cmap(0.9), lw=0.25, alpha=0.5, label=None, zorder=0
+            df.index, df[y], color=cmap(0.9), lw=0.25, alpha=0.5, label=None, zorder=0
         )
     # plot quantiles
     for i, p in enumerate(PERCENTS):
         quants = p, 100 - p
         label = f"{quants[1] - quants[0]}% HDI"
-        lower, upper = [reframe_gpp.quantile(q=x / 100.0, axis=1) for x in quants]
+        lower, upper = [df.quantile(q=q / 100.0, axis=1) for q in quants]
         color = COLOR_FRACS[i]
         ax.fill_between(
-            x, upper, lower, color=cmap(color), alpha=0.5, label=label, zorder=i + 1
+            df.index,
+            upper,
+            lower,
+            color=cmap(color),
+            alpha=0.5,
+            label=label,
+            zorder=i + 1,
         )
     # plot data points
     plotting.add_data_points_by_pollster(
@@ -358,8 +408,10 @@ def plot_voting(inputs, idata, var_name, palette, title_stem, **kwargs) -> pd.Se
         column=inputs["column"],
         p_color="#555555",
     )
-    middle = reframe_gpp.quantile(q=0.5, axis=1)
+    # annotate the min, max and end
+    middle = df.quantile(q=0.5, axis=1)
     plotting.annotate_min_max_end(ax, middle)
+    # make it pretty
     lo, hi = ax.get_ylim()
     halfway = (hi - lo) / 2 + lo
     space = "lower" if middle.iloc[0] > halfway else "upper"
@@ -384,27 +436,21 @@ def plot_house_effects(
 ) -> None:
     """Plot the House effects."""
 
-    xdata = az.extract(idata, var_names="house_effects").transpose("sample", ...)
-    reframe = (
-        xdata.to_dataframe()["house_effects"]
-        .unstack(level=2)
-        .T.rename(index=inputs["firm_map"])
-    )
-    middle = reframe.quantile(0.5, axis=1).sort_values()
-    reframe = reframe.reindex(middle.index)
+    # get the data as a DataFrame
+    df = _get_var("house_effects", idata).rename(index=inputs["firm_map"])
+    middle = df.quantile(0.5, axis=1).sort_values()
+    df = df.reindex(middle.index)
 
+    # plot quantiles, with text over median
     _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
-    x = reframe.index
-
-    # plot quantiles
     for i, p in enumerate(PERCENTS):
         quants = p, 100 - p
         label = f"{quants[1] - quants[0]}% HDI"
-        lower, upper = [reframe.quantile(q=x / 100.0, axis=1) for x in quants]
+        lower, upper = [df.quantile(q=q / 100.0, axis=1) for q in quants]
         color = COLOR_FRACS[i]
         ax.barh(
-            x,
+            df.index,
             width=upper - lower,
             left=lower,
             color=cmap(color),
