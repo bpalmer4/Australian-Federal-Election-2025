@@ -7,7 +7,7 @@
 # system imports
 import re
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Mapping
 
 # data science imports
 import matplotlib.dates as mdates
@@ -91,7 +91,7 @@ def clear_chart_dir() -> None:
 
 def amalgamate_other(
     df: pd.DataFrame,
-    columns_to_sum: tuple[str] = ("ONP", "UAP", "OTH"),
+    columns_to_sum: Iterable[str] = ("ONP", "UAP", "OTH"),
     new_column="Primary vote Other",
 ) -> pd.DataFrame:
     """Sum regex-pattern selected columns and place in new_column."""
@@ -385,7 +385,8 @@ def finalise_plot(axes, **kwargs) -> None:
     _save_to_file(fig, **kwargs)
 
     # show the plot in Jupyter Lab
-    _ = plt.show() if "show" in kwargs and kwargs["show"] else None
+    if "show" in kwargs and kwargs["show"]:
+        plt.show()
 
     # And close
     closing = True if "dont_close" not in kwargs else not kwargs["dont_close"]
@@ -425,7 +426,7 @@ def annotate_min_max_end(ax: plt.Axes, series: pd.Series) -> None:
     end_point = series.index[-1], series.iloc[-1]
     for x, y in (minimum, maximum, end_point):
         ax.axvline(x, lw=1, color="darkgrey")
-        pos = (
+        pos: Mapping = (
             {
                 "y": max_y,
                 "va": "top",

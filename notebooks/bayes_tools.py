@@ -1,5 +1,5 @@
 """Tools for doing Bayesian aggregation of polls"""
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Mapping
 
 import arviz as az
 import matplotlib.pyplot as plt
@@ -365,7 +365,7 @@ def report_glitches(idata: az.InferenceData) -> str:
     )
 
 
-def draw_samples(model: pm.Model, n_cores: int = 10, **kwargs) -> az.InferenceData:
+def draw_samples(model: pm.Model, n_cores: int = 10, **kwargs) -> tuple[az.InferenceData, str]:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
     with model:
@@ -575,7 +575,7 @@ def plot_std_set(
     """Produce the standard set of plots for a Bayesian
     Analysis. Return the median sample."""
 
-    core_plot_args = {
+    core_plot_args: Mapping = {
         "show": show,
         "rheader": None if not glitches else {"rheader": glitches},
     }
