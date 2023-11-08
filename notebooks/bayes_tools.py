@@ -69,7 +69,7 @@ def prepare_data_for_analysis(
 
 # --- Bayesian models and model components
 # - Gaussian Random Walk
-def guess_start(inputs: dict[str, Any]) -> np.float64:
+def _guess_start(inputs: dict[str, Any]) -> np.float64:
     """Guess a starting point for the random walk,
     based on early poll results."""
 
@@ -101,7 +101,7 @@ def temporal_model(
             innovation = pm.InverseGamma("innovation", **beta_hint)
 
         init_guess_sigma = 5.0  # SD for initial guess
-        start_dist = pm.Normal.dist(mu=guess_start(inputs), sigma=init_guess_sigma)
+        start_dist = pm.Normal.dist(mu=_guess_start(inputs), sigma=init_guess_sigma)
 
         voting_intention = pm.GaussianRandomWalk(
             "voting_intention",
@@ -131,10 +131,22 @@ def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVar
     return house_effects
 
 
-def _get_sigma_likelihood(model, kwargs: dict) -> float | pt.TensorType:
-    """Sigma for the likelihood if not already specified."""
+def core_likelihood(
+    inputs: dict[str, Any],
+    model: pm.Model,
+    voting_intention: pt.TensorVariable,
+    house_effects: pt.TensorVariable,
+    **kwargs,
+) -> None:
+    """Likelihood for both GP and GRW models."""
 
+    # check for specified parameters
+    likelihood = kwargs.get("likelihood", "Normal")
+    nu = kwargs.get("nu", None)
     sigma_likelihood = kwargs.get("sigma_likelihood", None)
+    grw = kwargs.get("grw", True)
+
+    # construct likelihood
     with model:
         if sigma_likelihood is None:
             sigma_likelihood_hint = {"sigma": 5}
@@ -142,10 +154,49 @@ def _get_sigma_likelihood(model, kwargs: dict) -> float | pt.TensorType:
             sigma_likelihood = pm.HalfNormal(
                 "sigma_likelihood", **sigma_likelihood_hint
             )
-    return sigma_likelihood
+        mu = (
+            voting_intention[inputs["poll_day"]] + house_effects[inputs["poll_firm"]]
+            if grw
+            else voting_intention + house_effects[inputs["poll_firm"]]
+        )
+        common_args = {
+            "name": "observed_polls",
+            "mu": mu,
+            "sigma": sigma_likelihood,
+            "observed": inputs["zero_centered_y"],
+        }
+
+        match likelihood:
+            case "Normal":
+                pm.Normal(**common_args)
+
+            case "StudentT":
+                if nu is None:
+                    nu_hint = {"alpha": 2, "beta": 0.1}
+                    print(f"nu Gamma prior: {nu_hint}")
+                    nu = pm.Gamma("nu", **nu_hint) + 1
+
+                pm.StudentT(
+                    **common_args,
+                    nu=nu,
+                )
 
 
-def observational_model(
+def grw_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
+    """PyMC model for pooling/aggregating voter opinion polls,
+    using a Gaussian random walk (GRW). Model assumes poll data
+    (in percentage points) has been zero-centered (by
+    subtracting the mean for the series). Model assumes house
+    effects sum to zero."""
+
+    model = pm.Model()
+    voting_intention = temporal_model(inputs, model, **kwargs)
+    house_effects = house_effects_model(inputs, model)
+    core_likelihood(inputs, model, voting_intention, house_effects, **kwargs)
+    return model
+
+
+def grw_observational_model(
     inputs: dict[str, Any],
     model: pm.Model,
     voting_intention: pt.TensorVariable,
@@ -155,18 +206,9 @@ def observational_model(
     """Observational model (likelihood) component.
     Used with GRW models."""
 
-    # check for specified parameters
+    core_likelihood(inputs, model, voting_intention, house_effects, **kwargs)
 
     with model:
-        sigma_likelihood = _get_sigma_likelihood(model, kwargs)
-
-        pm.Normal(
-            "polling_observations",
-            mu=voting_intention[inputs["poll_day"].values]
-            + house_effects[inputs["poll_firm"].values],
-            sigma=sigma_likelihood,
-            observed=inputs["zero_centered_y"],
-        )
         if inputs["left_anchor"] is not None:
             # --- there should be a better way to left anchor.
             # --- NEED TO THINK ABOUT THIS SOME MORE.
@@ -187,21 +229,6 @@ def observational_model(
             )
 
 
-def grw_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
-    """PyMC model for pooling/aggregating voter opinion polls,
-    using a Gaussian random walk (GRW). Model assumes poll data
-    (in percentage points) has been zero-centered (by
-    subtracting the mean for the series). Model can be
-    left or right anchored. Unanchored model assumes house
-    effects sum to zero."""
-
-    model = pm.Model()
-    voting_intention = temporal_model(inputs, model, **kwargs)
-    house_effects = house_effects_model(inputs, model)
-    observational_model(inputs, model, voting_intention, house_effects, **kwargs)
-    return model
-
-
 def grw_la_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
     """A more nuanced left_anchor model which captures the
     systemic polling error in the posterior. But otherwise,
@@ -212,6 +239,7 @@ def grw_la_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
     voting_intention = temporal_model(inputs, model, **kwargs)
 
     with model:
+        # different house-effects model
         poll_error_sigma = 2  # assume smaller systemic poll error possible
         house_effect_sigma = 5  # assume larger error on individual house effects
         systemic_poll_error = pm.Normal(
@@ -227,7 +255,7 @@ def grw_la_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
             var=zero_sum_house_effects + systemic_poll_error,
         )
 
-    observational_model(inputs, model, voting_intention, house_effects, **kwargs)
+    grw_observational_model(inputs, model, voting_intention, house_effects, **kwargs)
     return model
 
 
@@ -274,52 +302,6 @@ def gp_prior(
     return voting_intention
 
 
-def gp_likelihood(
-    inputs: dict[str, Any],
-    model: pm.Model,
-    voting_intention: pt.TensorVariable,
-    house_effects: pt.TensorVariable,
-    **kwargs,
-) -> None:
-    """Observational model (likelihood) - Gaussian Process model.
-
-    Two possible likelihood distributions specified by
-    "approach" in kwargs: 'Normal' or 'StudentT'.
-
-    Note: nu and sigma can be fixed floats rather than
-    distributions by specification in kwargs. Possible
-    values include: nu=20, sigma=1.2"""
-
-    # check for specified parameters
-    likelihood = kwargs.get("likelihood", "Normal")
-    nu = kwargs.get("nu", None)
-
-    # construct the likelihood
-    with model:
-        sigma_likelihood = _get_sigma_likelihood(model, kwargs)
-        common_args = {
-            "name": "observed_polls",
-            "mu": voting_intention + house_effects[inputs["poll_firm"]],
-            "sigma": sigma_likelihood,
-            "observed": inputs["zero_centered_y"],
-        }
-
-        match likelihood:
-            case "Normal":
-                pm.Normal(**common_args)
-
-            case "StudentT":
-                if nu is None:
-                    nu_hint = {"alpha": 2, "beta": 0.1}
-                    print(f"nu Gamma prior: {nu_hint}")
-                    nu = pm.Gamma("nu", **nu_hint) + 1
-
-                pm.StudentT(
-                    **common_args,
-                    nu=nu,
-                )
-
-
 def gp_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
     """PyMC model for pooling/aggregating voter opinion polls,
     using a Gaussian Process (GP). Note: **kwargs allows one to
@@ -329,7 +311,7 @@ def gp_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
     model = pm.Model()
     voting_intention = gp_prior(inputs, model, **kwargs)
     house_effects = house_effects_model(inputs, model)
-    gp_likelihood(inputs, model, voting_intention, house_effects, **kwargs)
+    core_likelihood(inputs, model, voting_intention, house_effects, **kwargs)
     return model
 
 
@@ -365,7 +347,9 @@ def report_glitches(idata: az.InferenceData) -> str:
     )
 
 
-def draw_samples(model: pm.Model, n_cores: int = 10, **kwargs) -> tuple[az.InferenceData, str]:
+def draw_samples(
+    model: pm.Model, n_cores: int = 10, **kwargs
+) -> tuple[az.InferenceData, str]:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
     with model:
@@ -450,6 +434,7 @@ def plot_voting(inputs, idata, palette, **kwargs) -> pd.Series:
 
     # get the relevant data as a DataFrame
     df = _get_var("voting_intention", idata) - inputs["centre_offset"]
+    plot_some_samples: int = kwargs.get("plot_some_samples", 0)
     df.index = (
         [x.to_timestamp() for x in inputs["poll_date"]]
         if len(df) == inputs["n_polls"]
@@ -462,11 +447,18 @@ def plot_voting(inputs, idata, palette, **kwargs) -> pd.Series:
     _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
     x = df.index
-    # plot a sample of the samples
-    # for y in df.sample(n=100, axis=1):
-    #    ax.plot(
-    #        df.index, df[y], color=cmap(0.9), lw=0.25, alpha=0.5, label=None, zorder=0
-    #    )
+    # plot samples
+    if plot_some_samples:
+        for y in df.sample(n=plot_some_samples, axis=1):
+            ax.plot(
+                df.index,
+                df[y],
+                color=cmap(0.9),
+                lw=0.25,
+                alpha=0.5,
+                label=None,
+                zorder=0,
+            )
     # plot quantiles
     for i, p in enumerate(PERCENTS):
         quants = p, 100 - p
