@@ -1,4 +1,7 @@
 """Tools for doing Bayesian aggregation of polls"""
+from itertools import product
+from operator import mul
+import sys
 from typing import Any, Iterable, Optional, Mapping
 
 import arviz as az
@@ -13,6 +16,41 @@ from common import MIDDLE_DATE
 
 
 # --- Data preparation
+def _jitter_for_unique_dates(
+    df: pd.DataFrame,  # data frame
+    column: str,  # column name of pd.Period to jitter
+    max_movement: int = 4,  # days
+) -> pd.DataFrame:
+    """Jitter dates to avoid conflicts. Why? Because
+    dates should not be duplicated in a Gaussian Process."""
+
+    # See if we need to do anything
+    duplicated = df[df[column].duplicated(keep="first")]
+    if not (l := len(duplicated)):
+        print("No dates are duplicated.")
+        return df
+    print(f"{l} duplicated dates to be adjusted.")
+
+    df = df.copy()  # let's not change the original
+    all_dates = set(df[column])
+    adjustments = tuple(
+        pd.Timedelta(mul(*x), unit="D")
+        for x in product(range(1, max_movement + 1), (-1, 1))
+    )
+    for index, date in duplicated[column].items():
+        for adjustment in adjustments:
+            check = date + adjustment
+            if check not in all_dates:
+                df.loc[index, column] = check
+                all_dates.add(check)
+                break
+
+    if df[column].duplicated().any():
+        print("Could not successfully jitter dates.")
+        sys.exit(-1)
+    return df
+
+
 def prepare_data_for_analysis(
     df: pd.DataFrame,
     column: str,
@@ -23,10 +61,9 @@ def prepare_data_for_analysis(
     """Prepare a dataframe column for Bayesian analysis.
     Returns a python dict with all the necessary values within."""
 
-    # make sure data is in date order
-    assert df[
-        MIDDLE_DATE
-    ].is_monotonic_increasing, "Data must be in ascending date order"
+    # make sure data is in date order and uniquely indexed
+    df = df.copy().sort_values(MIDDLE_DATE).reset_index(drop=True)
+    df = _jitter_for_unique_dates(df, MIDDLE_DATE)
 
     # get our zero centered observations
     y = df[column].dropna()  # assume data in percentage points (0..100)
