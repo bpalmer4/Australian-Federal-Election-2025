@@ -18,24 +18,25 @@ from common import MIDDLE_DATE
 # --- Data preparation
 def _jitter_for_unique_dates(
     df: pd.DataFrame,  # data frame
-    column: str,  # column name of pd.Period to jitter
-    max_movement: int = 4,  # days
+    column: str = MIDDLE_DATE,  # column name of pd.Period to jitter
+    max_movement: int = 3,  # days
 ) -> pd.DataFrame:
     """Jitter dates to avoid conflicts. Why? Because
     dates should not be duplicated in a Gaussian Process."""
 
     # See if we need to do anything
     duplicated = df[df[column].duplicated(keep="first")]
-    if not (l := len(duplicated)):
+    if not (how_many := len(duplicated)):
         print("No dates are duplicated.")
         return df
-    print(f"{l} duplicated dates to be adjusted.")
+    print(f"There are {how_many} duplicated dates to be adjusted.")
 
     df = df.copy()  # let's not change the original
     all_dates = set(df[column])
     adjustments = tuple(
+        # check for free earlier dates first ...
         pd.Timedelta(mul(*x), unit="D")
-        for x in product(range(1, max_movement + 1), (-1, 1))
+        for x in product((-1, 1), range(1, max_movement + 1))
     )
     for index, date in duplicated[column].items():
         for adjustment in adjustments:
@@ -48,22 +49,22 @@ def _jitter_for_unique_dates(
     if df[column].duplicated().any():
         print("Could not successfully jitter dates.")
         sys.exit(-1)
+
     return df
 
 
 def prepare_data_for_analysis(
     df: pd.DataFrame,
     column: str,
-    right_anchor: Optional[tuple[pd.Period, float]] = None,
-    left_anchor: Optional[tuple[pd.Period, float]] = None,
-    verbose: bool = False,
+    **kwargs,
 ) -> dict[str, Any]:
     """Prepare a dataframe column for Bayesian analysis.
     Returns a python dict with all the necessary values within."""
 
     # make sure data is in date order and uniquely indexed
     df = df.copy().sort_values(MIDDLE_DATE).reset_index(drop=True)
-    df = _jitter_for_unique_dates(df, MIDDLE_DATE)
+    if kwargs.get("jitter_dates", False):
+        df = _jitter_for_unique_dates(df)
 
     # get our zero centered observations
     y = df[column].dropna()  # assume data in percentage points (0..100)
@@ -72,6 +73,8 @@ def prepare_data_for_analysis(
     n_polls = len(zero_centered_y)
 
     # get our day-to-date mapping
+    right_anchor: Optional[tuple[pd.Period, float]] = kwargs.get("right_anchor", None)
+    left_anchor: Optional[tuple[pd.Period, float]] = kwargs.get("left_anchor", None)
     day_zero = left_anchor[0] if left_anchor is not None else df[MIDDLE_DATE].min()
     last_day = right_anchor[0] if right_anchor is not None else df[MIDDLE_DATE].max()
     n_days = int((last_day - day_zero) / pd.Timedelta(days=1)) + 1
@@ -91,7 +94,7 @@ def prepare_data_for_analysis(
     firm_map = {code: firm for firm, code in zip(df.Brand, poll_firm)}
 
     # Information
-    if verbose:
+    if kwargs.get("verbose", False):
         print(
             f"Series: {column}\n"
             f"Number of polls: {n_polls}\n"
@@ -101,7 +104,9 @@ def prepare_data_for_analysis(
             f"Pollster map: {firm_map}\n"
             f"Polling days:\n{poll_day.values}\n"
         )
-    return locals().copy()  # okay, this is a bit of a hack
+    inputs = locals().copy()  # okay, this is a bit of a hack
+    del inputs["kwargs"]
+    return inputs
 
 
 # --- Bayesian models and model components
