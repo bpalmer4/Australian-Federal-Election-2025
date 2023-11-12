@@ -1,8 +1,8 @@
 """Tools for doing Bayesian aggregation of polls"""
+import sys
 from itertools import product
 from operator import mul
-import sys
-from typing import Any, Iterable, Optional, Mapping
+from typing import Any, Iterable, Mapping, Optional
 
 import arviz as az
 import matplotlib.pyplot as plt
@@ -31,7 +31,8 @@ def _jitter_for_unique_dates(
         return df
     print(f"There are {how_many} duplicated dates to be adjusted.")
 
-    df = df.copy()  # let's not change the original
+    # change the dates for each date collision.
+    df = df.copy()  # let's not change the original DataFrame
     all_dates = set(df[column])
     adjustments = tuple(
         # check for free earlier dates first ...
@@ -46,6 +47,7 @@ def _jitter_for_unique_dates(
                 all_dates.add(check)
                 break
 
+    # collisions may remain if too many to adjust within max_movement
     if df[column].duplicated().any():
         print("Could not successfully jitter dates.")
         sys.exit(-1)
@@ -66,8 +68,9 @@ def prepare_data_for_analysis(
     if kwargs.get("jitter_dates", False):
         df = _jitter_for_unique_dates(df)
 
-    # get our zero centered observations
-    y = df[column].dropna()  # assume data in percentage points (0..100)
+    # get our zero centered observations, ignore missing data
+    # assume data in percentage points (0..100)
+    y = df[column].dropna()
     centre_offset = -y.mean()
     zero_centered_y = y + centre_offset
     n_polls = len(zero_centered_y)
@@ -78,15 +81,16 @@ def prepare_data_for_analysis(
     day_zero = left_anchor[0] if left_anchor is not None else df[MIDDLE_DATE].min()
     last_day = right_anchor[0] if right_anchor is not None else df[MIDDLE_DATE].max()
     n_days = int((last_day - day_zero) / pd.Timedelta(days=1)) + 1
-    poll_date = df[MIDDLE_DATE]
-    poll_day = ((df[MIDDLE_DATE] - day_zero) / pd.Timedelta(days=1)).astype(int)
-    poll_day_c_ = np.c_[poll_day]  # numpy column vector of poll_days
+    poll_date = df.loc[y.index, MIDDLE_DATE]
+    poll_day = ((poll_date - day_zero) / pd.Timedelta(days=1)).astype(int)
+    poll_day_c_ = np.c_[poll_day]  # numpy column vector of poll_days for GP
 
     # sanity checks
-    if left_anchor is not None:
-        assert day_zero <= df[MIDDLE_DATE].min()
-    if right_anchor is not None:
-        assert last_day >= df[MIDDLE_DATE].max()
+    if (left_anchor and day_zero > df[MIDDLE_DATE].min()) or (
+        right_anchor and last_day < df[MIDDLE_DATE].max()
+    ):
+        print("Anchored date(s) should be before/after poll dates.")
+        sys.exit(-1)
 
     # get our poll-branding information
     poll_firm = df.Brand.astype("category").cat.codes
@@ -104,8 +108,10 @@ def prepare_data_for_analysis(
             f"Pollster map: {firm_map}\n"
             f"Polling days:\n{poll_day.values}\n"
         )
+
+    # pop everything we need to know into a dictionary and return it
     inputs = locals().copy()  # okay, this is a bit of a hack
-    del inputs["kwargs"]
+    del inputs["kwargs"]  # don't need the original kwargs
     return inputs
 
 
