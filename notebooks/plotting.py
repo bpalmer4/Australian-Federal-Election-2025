@@ -191,7 +191,15 @@ _annotation_kwargs = ("lfooter", "rfooter", "lheader", "rheader")
 
 _file_kwargs = ("pre_tag", "tag", "file_type", "dpi")
 _fig_kwargs = ("figsize", "show")
-_oth_kwargs = ("zero_y", "y0", "y50", "dont_save", "dont_close", "concise_dates")
+_oth_kwargs = (
+    "zero_y",
+    "y0",
+    "y50",
+    "dont_save",
+    "dont_close",
+    "concise_dates",
+    "straighten_tl",
+)
 _ACCEPTABLE_KWARGS = frozenset(
     _value_kwargs
     + _splat_kwargs
@@ -243,7 +251,7 @@ def _apply_annotations(axes, **kwargs) -> None:
     """Set figure size and apply chart annotations."""
 
     fig = axes.figure
-    fig_size = DEFAULT_FIG_SIZE if "figsize" not in kwargs else kwargs["figsize"]
+    fig_size = kwargs.get("figsize", DEFAULT_FIG_SIZE)
     fig.set_size_inches(*fig_size)
 
     annotations = {
@@ -301,25 +309,30 @@ def _apply_kwargs(axes, **kwargs) -> None:
         axes.xaxis.set_major_locator(locator)
         axes.xaxis.set_major_formatter(formatter)
 
+    # straigten x tick labels
+    if check_kwargs("straighten_tl"):
+        for tick in axes.get_xticklabels():
+            tick.set_rotation(0)
+            tick.set_ha("center")
+
 
 # private
 def _save_to_file(fig, **kwargs) -> None:
     """Save the figure to file."""
 
-    saving = True if "dont_save" not in kwargs else not kwargs["dont_save"]
+    saving = not kwargs.get("dont_save", False)
     if saving:
-        title = "" if "title" not in kwargs else kwargs["title"]
-        pre_tag = "" if "pre_tag" not in kwargs else kwargs["pre_tag"]
-        tag = "" if "tag" not in kwargs else kwargs["tag"]
-        file_title = re.sub(_remove, "-", title).lower()
+        title = kwargs.get("title", "")
+        pre_tag = kwargs.get("pre_tag", "")
+        pre_tag = f"{pre_tag}-" if pre_tag else ""
+        tag = kwargs.get("tag", "")
+        tag = f"-{tag}" if tag else ""
+        file_title = f"{pre_tag}{title}{tag}"
+        file_title = re.sub(_remove, "-", file_title).lower()
         file_title = re.sub(_reduce, "-", file_title)
-        file_type = (
-            DEFAULT_FILE_TYPE if "file_type" not in kwargs else kwargs["file_type"]
-        )
-        dpi = DEFAULT_DPI if "dpi" not in kwargs else kwargs["dpi"]
-        fig.savefig(
-            f"{DEFAULT_CHART_DIR}/{pre_tag}{file_title}-{tag}.{file_type}", dpi=dpi
-        )
+        file_type = kwargs.get("file_type", DEFAULT_FILE_TYPE)
+        dpi = kwargs.get("dpi", DEFAULT_DPI)
+        fig.savefig(f"{DEFAULT_CHART_DIR}/{file_title}.{file_type}", dpi=dpi)
 
 
 # - public functions for finalise_plot()
@@ -385,12 +398,11 @@ def finalise_plot(axes, **kwargs) -> None:
     _save_to_file(fig, **kwargs)
 
     # show the plot in Jupyter Lab
-    if "show" in kwargs and kwargs["show"]:
+    if kwargs.get("show", False):
         plt.show()
 
     # And close
-    closing = True if "dont_close" not in kwargs else not kwargs["dont_close"]
-    if closing:
+    if not kwargs.get("dont_close", False):
         plt.close()
 
 
@@ -469,7 +481,7 @@ def add_data_points_by_pollster(
 
 
 # --- Localised regression charts
-LOWESS_DAYS = 91
+LOWESS_DAYS = 150
 
 
 def calculate_lowess(
@@ -502,8 +514,9 @@ def generate_defaults(
     kwargs: dict,
     defaults: dict,
 ) -> tuple[dict, dict]:
-    """Adjust default arguments based on what is in kwargs.
-    Returns kwargs_adjusted and defaults_adjusted."""
+    """Adjust default arguments to finalise_plot() based
+    on what is in kwargs. Returns kwargs_adjusted and
+    defaults_adjusted."""
 
     kwargs_adjusted = kwargs.copy()
     defaults_adjusted = defaults.copy()
