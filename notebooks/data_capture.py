@@ -1,17 +1,17 @@
 """Functions for capturing and cleaning data from Wikipedia."""
 
 import re
-from io import StringIO
-from time import time
 from datetime import date
-from typing import Optional
+from io import StringIO
 from pathlib import Path
+from time import time
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 import requests
 
-from common import MIDDLE_DATE
+from common import ALL_DATES, MIDDLE_DATE, confirm
 
 # --- [VERY SIMPLE] WEB BASED DATA CAPTURE --
 
@@ -25,7 +25,7 @@ def get_url(url: str) -> str:
     }
     timeout = 15  # seconds
     response = requests.get(url.format(rn=time()), headers=headers, timeout=timeout)
-    assert response.status_code == 200  # successful retrieval
+    confirm(response.status_code == 200)  # successful retrieval
     return response.text
 
 
@@ -34,7 +34,7 @@ def get_table_list(url: str) -> list[pd.DataFrame]:
 
     html = get_url(url)
     df_list = pd.read_html(StringIO(html))
-    assert df_list  # check we have at least one table
+    confirm(df_list)  # check we have at least one table
     return df_list
 
 
@@ -58,7 +58,7 @@ def get_combined_table(
             combined = table.copy()
         else:
             # check table headers align ...
-            assert (combined.columns == table.columns).all()
+            confirm((combined.columns == table.columns).all())
             combined = pd.concat((combined, table))
 
     return combined
@@ -148,7 +148,7 @@ def remove_footnotes(t: pd.DataFrame) -> pd.DataFrame:
         if brand not in t.columns.get_level_values(0):
             continue
         col = t.columns[t.columns.get_level_values(0) == brand]
-        assert len(col) == 1
+        confirm(len(col) == 1)
         t.loc[:, col] = (
             t.loc[:, col]  # returns a single column DataFrame
             .pipe(lambda x: x[x.columns[0]])  # make as Series
@@ -158,8 +158,8 @@ def remove_footnotes(t: pd.DataFrame) -> pd.DataFrame:
     return t
 
 
-def get_mean_date(tokens: list[str]) -> pd.Timestamp:
-    """Extract the middle date from a list of date tokens."""
+def get_dates(tokens: list[str]) -> pd.Series:
+    """Extract the first, middle and last date from a list of date tokens."""
 
     last_day = None
     day, month, year = None, None, None
@@ -200,11 +200,14 @@ def get_mean_date(tokens: list[str]) -> pd.Timestamp:
     first_day = pd.Timestamp(f"{year} {month[:3]} {day}")
     if first_day > last_day:
         print(
-            f"CHECK these dates in get_mean_date(): {first_day} "
-            f"{last_day} with these tokens {remember}"
+            "CHECK there may be a problem with these dates in get_dates(): "
+            f"{first_day} {last_day} with these tokens {remember}"
         )
-
-    return (first_day + ((last_day - first_day) / 2)).date()
+    middle_day = first_day + ((last_day - first_day) / 2)
+    return pd.Series(
+        data=(first_day.date(), middle_day.date(), last_day.date()),
+        index=ALL_DATES,
+    )
 
 
 def tokenise_dates(dates: pd.Series) -> pd.Series:
@@ -221,16 +224,17 @@ def tokenise_dates(dates: pd.Series) -> pd.Series:
     )
 
 
-def middle_date(t: pd.DataFrame) -> pd.DataFrame:
-    """Get the middle date in the date range, into column MIDDLE_DATE."""
+def get_relevant_dates(t: pd.DataFrame) -> pd.DataFrame:
+    """Get the first, middle and last date in the date range,
+    into the columns FIRST_DATE, MIDDLE_DATE and LAST_DATE."""
 
     # get the Date column name
     cols = [col for col in t.columns if "Date" in col]
-    assert len(cols) == 1
+    confirm(len(cols) == 1)
 
     # assumes dates in strings are ordered from first to last
     tokens = tokenise_dates(t[cols[0]])
-    t[MIDDLE_DATE] = tokens.apply(get_mean_date).astype("datetime64[ns]")
+    t[ALL_DATES] = tokens.apply(get_dates).astype(("datetime64[ns]"))
     return t
 
 
@@ -243,7 +247,7 @@ def clean(table: pd.DataFrame) -> pd.DataFrame:
     t = fix_numerical_cols(t)
     t = fix_column_names(t)
     t = remove_footnotes(t)
-    t = middle_date(t)
+    t = get_relevant_dates(t)
     t = t.sort_values(MIDDLE_DATE, ascending=True)
     t = t.reset_index(drop=True)  # Ensure a unique index
     return t
@@ -252,7 +256,7 @@ def clean(table: pd.DataFrame) -> pd.DataFrame:
 def flatten_col_names(columns: pd.Index) -> list[str]:
     """Flatten the hierarchical column index."""
 
-    assert columns.nlevels >= 2
+    confirm(columns.nlevels >= 2)
     flatter = [
         " ".join(col).strip() if col[0] != col[1] else col[0] for col in columns.values
     ]
@@ -372,7 +376,9 @@ def retrieve(
     capture_date: Optional[str] = None,  # format YYYYMMDD
     data_dir: str = DATA_DIR,
 ) -> dict[str, pd.DataFrame]:
-    """Retrieve today's captured data from file."""
+    """Retrieve today's captured data from file. Return a
+    dictionary of DataFrames. Return an empty dictionary if
+    data has not been captured for today."""
 
     data = {}
     today = _common_storage(data_dir)
@@ -381,7 +387,10 @@ def retrieve(
     for file in directory.glob(f"*{capture_date}{FILE_TYPE}"):
         name = file.name.replace(f"-{capture_date}{FILE_TYPE}", "")
         df = pd.read_csv(file, index_col=0)
-        df[MIDDLE_DATE] = pd.PeriodIndex(df[MIDDLE_DATE], freq="D")
+        for column in ALL_DATES:
+            if column not in df.columns:
+                continue
+            df[column] = pd.PeriodIndex(df[column], freq="D")
         data[name] = df
 
     return data
