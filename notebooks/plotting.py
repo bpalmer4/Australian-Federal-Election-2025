@@ -7,11 +7,12 @@
 # system imports
 import re
 from pathlib import Path
-from typing import Iterable, Optional, Mapping
+from typing import Iterable, Mapping, Optional
 
 # data science imports
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
@@ -68,11 +69,12 @@ footers = {"lfooter": LFOOTER, "rfooter": RFOOTER}
 # --- initialise plot
 
 
-def initiate_plot():
-    """Get a matplotlib figure and axes instance."""
-    fig, ax = plt.subplots(figsize=(9, 4.5), constrained_layout=False)
-    ax.margins(0.02)
-    return fig, ax
+def initiate_plot() -> tuple[plt.Figure, plt.Axes]:
+    """Return a matplotlib figure and axes instance in a tuple."""
+    
+    fig, axes = plt.subplots(figsize=(9, 4.5), constrained_layout=False)
+    axes.margins(0.02)
+    return fig, axes
 
 
 # --- clear_chart_dir()
@@ -91,21 +93,21 @@ def clear_chart_dir() -> None:
 
 def amalgamate_other(
     df: pd.DataFrame,
-    columns_to_sum: Iterable[str] = ("ONP", "UAP", "OTH"),
+    columns_to_sum: Iterable[str] = ("ONP", "UAP", "OTH", "DEM", "DLP"),
     new_column="Primary vote Other",
 ) -> pd.DataFrame:
-    """Sum regex-pattern selected columns and place in new_column."""
+    """Sum rows for regex-pattern selected columns and place in new_column."""
 
-    sum_cols = [x for x in df.columns if any(ele in x for ele in columns_to_sum)]
-    df[new_column] = df[sum_cols].sum(axis=1)
+    sum_cols = [x for x in df.columns if any(item in x for item in columns_to_sum)]
+    df[new_column] = df[sum_cols].sum(axis=1).replace(0, np.nan)
     return df
 
 
 # --- colors for different types of line graphs
 
 
-def get_gp_palette(party_text: str) -> str:
-    """Return a colour map based on party."""
+def get_party_palette(party_text: str) -> str:
+    """Return a matplotlib color-map name based on party."""
 
     if "alp" in party_text.lower():
         return "Reds"
@@ -118,8 +120,8 @@ def get_gp_palette(party_text: str) -> str:
     return "viridis_r"
 
 
-def get_color(s: str) -> str:
-    """Return a color for a party label."""
+def get_party_color(s: str) -> str:
+    """Return a matplotlib color for a party label."""
 
     color_map = {
         ("dissatisfied",): "darkorange",  # must be before satisfied
@@ -153,7 +155,7 @@ def get_color(s: str) -> str:
 def colorise(party_list: Iterable) -> list[str]:
     """Return a list of party colors for a party_list."""
 
-    return [get_color(x) for x in party_list]
+    return [get_party_color(x) for x in party_list]
 
 
 def contrast(s: str) -> str:
@@ -223,7 +225,7 @@ def _check_kwargs(**kwargs) -> None:
 
 
 # private
-def _apply_value_kwargs(axes, settings: tuple, **kwargs) -> None:
+def _apply_value_kwargs(axes: plt.Axes, settings: tuple, **kwargs) -> None:
     """Set matplotlib elements by name using Axes.set()."""
 
     for setting in settings:
@@ -234,7 +236,7 @@ def _apply_value_kwargs(axes, settings: tuple, **kwargs) -> None:
 
 
 # private
-def _apply_splat_kwargs(axes, settings: tuple, **kwargs) -> None:
+def _apply_splat_kwargs(axes: plt.Axes, settings: tuple, **kwargs) -> None:
     """Set matplotlib elements dynamically using setting_name and splat."""
 
     for method_name in settings:
@@ -247,7 +249,7 @@ def _apply_splat_kwargs(axes, settings: tuple, **kwargs) -> None:
 
 
 # private
-def _apply_annotations(axes, **kwargs) -> None:
+def _apply_annotations(axes: plt.Axes, **kwargs) -> None:
     """Set figure size and apply chart annotations."""
 
     fig = axes.figure
@@ -277,7 +279,7 @@ def _apply_annotations(axes, **kwargs) -> None:
 
 
 # private
-def _apply_kwargs(axes, **kwargs) -> None:
+def _apply_kwargs(axes: plt.Axes, **kwargs) -> None:
     """Apply settings found in kwargs."""
 
     def check_kwargs(name):
@@ -317,7 +319,7 @@ def _apply_kwargs(axes, **kwargs) -> None:
 
 
 # private
-def _save_to_file(fig, **kwargs) -> None:
+def _save_to_file(fig: plt.Figure, **kwargs) -> None:
     """Save the figure to file."""
 
     saving = not kwargs.get("dont_save", False)
@@ -345,7 +347,7 @@ def get_possible_kwargs() -> list[str]:
 
 
 # public
-def finalise_plot(axes, **kwargs) -> None:
+def finalise_plot(axes: plt.Axes, **kwargs) -> None:
     """A function to finalise and save plots to the file system. The filename
     for the saved plot is constructed from the chart_dir, the plot's title,
     any specified tag text, and the file_type for the plot.
@@ -409,15 +411,15 @@ def finalise_plot(axes, **kwargs) -> None:
 # --- Misc ---
 
 
-def annotate_endpoint(ax, series: pd.Series, end=None, rot=90):
+def annotate_endpoint(axes: plt.Axes, series: pd.Series, end=None, rot=90):
     """Annotate the endpoint of a series on a plot."""
 
-    xlim = ax.get_xlim()
+    xlim = axes.get_xlim()
     span = xlim[1] - xlim[0]
     x = xlim[1] - (0.0005 * span)
     x = x if end is None else end
     font_size = 10
-    ax.text(
+    axes.text(
         x,
         series.iloc[-1],
         f"{round(series.iloc[-1], 1)}",
@@ -428,16 +430,16 @@ def annotate_endpoint(ax, series: pd.Series, end=None, rot=90):
     )
 
 
-def annotate_min_max_end(ax: plt.Axes, series: pd.Series) -> None:
+def annotate_min_max_end(axes: plt.Axes, series: pd.Series) -> None:
     """To do."""
 
-    min_y, max_y = ax.get_ylim()
+    min_y, max_y = axes.get_ylim()
     halfway = min_y + ((max_y - min_y) / 2)
     minimum = series.idxmin(), series.min()
     maximum = series.idxmax(), series.max()
     end_point = series.index[-1], series.iloc[-1]
     for x, y in (minimum, maximum, end_point):
-        ax.axvline(x, lw=1, color="darkgrey")
+        axes.axvline(x, lw=1, color="darkgrey")
         pos: Mapping = (
             {
                 "y": max_y,
@@ -449,17 +451,17 @@ def annotate_min_max_end(ax: plt.Axes, series: pd.Series) -> None:
                 "va": "bottom",
             }
         )
-        ax.text(
+        axes.text(
             x=x, s=f"{y:.1f}", ha="right", color="black", fontsize=8, rotation=90, **pos
         )
 
 
 def add_data_points_by_pollster(
-    ax,
-    df,
-    column,
-    p_color,
-    brand_col="Brand",
+    axes: plt.Axes,
+    df: pd.DataFrame,
+    column: str,
+    p_color: str,
+    brand_col: str = "Brand",
 ):
     """Add individual poll results to the plot."""
     for i, brand in enumerate(sorted(df[brand_col].unique())):
@@ -469,7 +471,7 @@ def add_data_points_by_pollster(
             if isinstance(column, list)
             else poll[column]
         )
-        ax.scatter(
+        axes.scatter(
             poll[MIDDLE_DATE],
             series,
             marker=MARKERS[i],
