@@ -5,13 +5,19 @@ from datetime import date
 from io import StringIO
 from pathlib import Path
 from time import time
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
 import requests
-
 from common import ALL_DATES, MIDDLE_DATE, ensure
+
+
+# --- Constants
+
+UNDECIDED_COLUMN: str = "Primary vote UND"
+PRIM_OTHERS_TO_SUM: str = "Primary vote (GRN|UAP|ONP|OTH|DEM|DLP)"
+
 
 # --- [VERY SIMPLE] WEB BASED DATA CAPTURE --
 
@@ -40,8 +46,7 @@ def get_table_list(url: str) -> list[pd.DataFrame]:
 
 
 def get_combined_table(
-    df_list: list[pd.DataFrame], 
-    table_list: Optional[int] = None
+    df_list: list[pd.DataFrame], table_list: Optional[int] = None
 ) -> Optional[pd.DataFrame]:
     """Get selected tables (by int in table_list) from Wikipedia page.
     Return a single merged table for the selected tables.
@@ -270,31 +275,30 @@ def flatten_col_names(columns: pd.Index) -> list[str]:
     return flat
 
 
-# --- Validation ---
+# --- Validation and corrective manipulations ---
 
 
-def row_addition_check(
+def row_sum_check(
     table: pd.DataFrame,
     pattern_list: list[str],
     target: int | float = 100.0,
-    tolerance: int | float = 1.01,
+    tolerance: int | float = 2.01,  # Focus on most egregious issues
 ) -> Optional[pd.DataFrame]:
     """Check that the columns that regex match with a pattern in the
     pattern list all add across to the target plus/minus the specified
-    tolerance. Returns a DataFrame with the rows of concern."""
+    tolerance. Returns None or a DataFrame with the rows of concern."""
 
     problems = {}
     for pattern in pattern_list:
         c_pattern = re.compile(pattern)
         cols = [c for c in table.columns if re.match(c_pattern, c)]
         row_sum = table[cols].sum(axis=1)
-        problematic = table[cols].notna().sum(axis=1).astype(bool) & (
-            (row_sum > target + tolerance) | (row_sum < target - tolerance)
-        )
+        problematic = (row_sum - target).abs() > tolerance
         if problematic.any():
-            problems[pattern] = row_sum[table[problematic].index]
+            problems[pattern] = row_sum[table.loc[problematic].index]
+
     if problems:
-        r_table = table.copy()
+        r_table = table.copy()  # preserve original data
         for pattern, rows in problems.items():
             r_table[pattern] = np.nan
             r_table.loc[rows.index, pattern] = rows
@@ -304,28 +308,82 @@ def row_addition_check(
 
 def distribute_undecideds(
     table: pd.DataFrame,
-    undec_col: str,
-    col_pattern_list: list[str],
-    target: int | float = 100,
-    tolerance: Optional[int | float] = None,
+    col_pattern_list: Sequence[str],
+    undec_col: str = UNDECIDED_COLUMN,
+    target: int | float = 100,  # per cent
 ) -> pd.DataFrame:
     """Distribute the undecided vote column among those columns that
-    match the col_pattern, where the other columns do not add to
-    the target (plus or minus the tolerance).
+    match the col_pattern, IFF that undecideds get the total for the
+    columns closer to the target than the sum without the undecideds.
     Return an updated table."""
 
-    undecideds = table.loc[table[undec_col].notna(), undec_col]
-    for col_pattern in col_pattern_list:
-        columns = [c for c in table.columns if col_pattern in c and c != undec_col]
-        tol = tolerance if tolerance is not None else 0.2 if len(columns) <= 2 else 1.01
-        row_sum = table.loc[undecideds.index, columns].sum(axis=1)
-        row_sum = row_sum[(row_sum < target - tol) | (row_sum > target + tol)]
-        affected_rows = row_sum.index
-        share = table.loc[affected_rows, columns].div(row_sum, axis=0)
-        allocation = share.mul(undecideds[affected_rows], axis=0)
-        table.loc[affected_rows, columns] += allocation
+    table = table.copy()  # preserve the original data
+    undecideds: pd.Series = table.loc[table[undec_col].notna(), undec_col]
+    for pattern in col_pattern_list:
+        # raw are the column calculations EXCLUDING the undecideds
+        c_pattern = re.compile(pattern)
+        raw_cols = [
+            c for c in table.columns if re.match(c_pattern, c) and c != undec_col
+        ]
+        raw_sum = table.loc[undecideds.index, raw_cols].sum(axis=1)
+        raw_closeness_to_target = (raw_sum - target).abs()
+
+        # cooked are the column calculations INCLUDING the undecideds
+        cooked_cols = raw_cols + [undec_col]
+        cooked_sum = table.loc[undecideds.index, cooked_cols].sum(axis=1)
+        cooked_closeness_to_target = (raw_sum - target).abs()
+
+        # we only redistribute the undecideds for the rows where
+        # the cooked calculations are closer to the target than raw
+        should_redistribute = (
+            cooked_closeness_to_target < raw_closeness_to_target
+        ).index
+        amount_to_share = table.loc[should_redistribute, undec_col]
+        shares = table.loc[should_redistribute, raw_cols].div(
+            raw_sum[should_redistribute], axis=0
+        )
+        allocation = shares.mul(amount_to_share, axis=0)
+        table.loc[should_redistribute, raw_cols] += allocation
+        print(f'For {pattern} distributed undecideds over '
+              f'{len(should_redistribute)/len(table) * 100:.2f}% of rows.')
 
     return table
+
+
+def normalise(
+    data: dict[str, pd.DataFrame],
+    checkables: dict[str, list[str]],
+    force_total_to: int | float = 100.0,  # selected columns normally row-sum to 100%
+    tolerance: int | float = 0.01,  # report most, but don't report anything too minor
+    verbose: bool = True,
+) -> dict[str, pd.DataFrame]:
+    """For the key, list of regex-patterns pairs in the checkables
+    dict: normalise all the columns in the DataFrame data[key],
+    that match the each consecutive pattern in check_list.
+    Because this is an aggressive treatment, you should keep
+    verbose reporting and check through the output."""
+
+    data = data.copy()  # preserve the original
+    for label, check_list in checkables.items():
+        df = data[label]
+        for check in check_list:
+            columns = [x for x in df.columns if re.match(check, x)]
+            if verbose:
+                print(f"For {label}; Pattern: {check} -> Selected columns: {columns}")
+            row_sum = df[columns].sum(axis=1)
+            problematic = (row_sum < (force_total_to - tolerance)) | (
+                row_sum > (force_total_to + tolerance)
+            )
+            count = problematic.astype(int).sum()
+            print(f"{count / len(row_sum) * 100:.2f}% of rows need normalisation.")
+            if verbose and count:
+                tmp_column_name = f"Normalisation totals {check}"
+                df[tmp_column_name] = row_sum
+                display(df.loc[problematic])
+                df = df.drop(tmp_column_name, axis=1)
+            df[columns] = df[columns].div(row_sum, axis=0) * force_total_to
+        data[label] = df
+    return data
 
 
 def methodology(
@@ -337,6 +395,7 @@ def methodology(
     """Mark methodological changes in the data by changing
     the firm/brand of the pollster in the data."""
 
+    data = data.copy()  # preserve the original
     for label, df in data.items():
         branding = "Brand", "Firm"
         for brand in branding:
