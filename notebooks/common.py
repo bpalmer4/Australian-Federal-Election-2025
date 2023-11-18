@@ -20,12 +20,11 @@ COLOR_LABOR = "crimson"
 # --- FUNCTIONS
 
 
-def confirm(condition: bool, message: str = "", exit_code: int = -1) -> None:
+def ensure(condition: bool, message: str = "", exit_code: int = 1) -> None:
     """Check a conditional and generate a system exit if that conditional is False.
     Much like a Python assert statement, but this function cannot be turned off
-    in production code."""
+    in production code (although the resulting exception could be caught)."""
 
     if not condition:
-        if message:
-            print(message)
-        sys.exit(exit_code)
+        exit_arg: int | str = message if message else exit_code 
+        sys.exit(exit_arg)
