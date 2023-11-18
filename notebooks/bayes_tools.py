@@ -12,7 +12,7 @@ import pymc as pm
 import pytensor.tensor as pt
 
 import plotting
-from common import MIDDLE_DATE
+from common import MIDDLE_DATE, ensure
 
 
 # --- Data preparation
@@ -71,6 +71,7 @@ def prepare_data_for_analysis(
     # get our zero centered observations, ignore missing data
     # assume data in percentage points (0..100)
     y = df[column].dropna()
+    df = df.loc[y.index]  # consistency, in case there were nulls in y
     centre_offset = -y.mean()
     zero_centered_y = y + centre_offset
     n_polls = len(zero_centered_y)
@@ -282,7 +283,7 @@ def grw_la_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
     systemic polling error in the posterior. But otherwise,
     much the same as the left anchor version of grw_model()."""
 
-    assert inputs["left_anchor"] is not None
+    ensure(inputs["left_anchor"] is not None)
     model = pm.Model()
     voting_intention = temporal_model(inputs, model, **kwargs)
 
@@ -638,7 +639,7 @@ def plot_std_set(
     )
 
     # plot voting intention over time
-    palette = plotting.get_gp_palette(title_stem)
+    palette = plotting.get_party_palette(title_stem)
     middle = plot_voting(
         inputs,
         idata,
