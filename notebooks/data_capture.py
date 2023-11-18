@@ -11,13 +11,13 @@ import numpy as np
 import pandas as pd
 import requests
 
-from common import ALL_DATES, MIDDLE_DATE, confirm
+from common import ALL_DATES, MIDDLE_DATE, ensure
 
 # --- [VERY SIMPLE] WEB BASED DATA CAPTURE --
 
 
 def get_url(url: str) -> str:
-    """Get the text at a URL."""
+    """Get the text found at a URL."""
 
     headers = {
         "Cache-Control": "no-cache, must-revalidate, private, max-age=0",
@@ -25,31 +25,34 @@ def get_url(url: str) -> str:
     }
     timeout = 15  # seconds
     response = requests.get(url.format(rn=time()), headers=headers, timeout=timeout)
-    confirm(response.status_code == 200)  # successful retrieval
+    ensure(response.status_code == 200)  # successful retrieval
     return response.text
 
 
 def get_table_list(url: str) -> list[pd.DataFrame]:
-    """Get a list of pandas DataFrames at a URL."""
+    """Return a list of tables found at a URL. Tables
+    are returned in pandas DataFrame format."""
 
     html = get_url(url)
     df_list = pd.read_html(StringIO(html))
-    confirm(df_list)  # check we have at least one table
+    ensure(df_list)  # check we have at least one table
     return df_list
 
 
 def get_combined_table(
-    df_list: pd.DataFrame, table_list: Optional[int] = None
+    df_list: list[pd.DataFrame], 
+    table_list: Optional[int] = None
 ) -> Optional[pd.DataFrame]:
-    """Get selected tables from Wikipedia page.
-    Return a single merged table for the wiki tables.
+    """Get selected tables (by int in table_list) from Wikipedia page.
+    Return a single merged table for the selected tables.
     NOTE: Wikipedia has calandar year tables. Consequerntly,
-          the table_list will need to be updated each year."""
+          the table_list argument will need to be updated
+          each year."""
 
     if not table_list:
         return None
-    selected = [df_list[i] for i in table_list]
-    combined = None
+    selected: list[pd.DataFrame] = [df_list[i] for i in table_list]
+    combined: Optional[pd.DataFrame] = None
     for table in selected:
         table = table.copy()  # preserve original
         flat = flatten_col_names(table.columns)
@@ -58,7 +61,9 @@ def get_combined_table(
             combined = table.copy()
         else:
             # check table headers align ...
-            confirm((combined.columns == table.columns).all())
+            combined_set = set(combined.columns)
+            table_set = set(table.columns)
+            ensure(combined_set.issuperset(table_set), "Column name mismatch")
             combined = pd.concat((combined, table))
 
     return combined
@@ -148,7 +153,7 @@ def remove_footnotes(t: pd.DataFrame) -> pd.DataFrame:
         if brand not in t.columns.get_level_values(0):
             continue
         col = t.columns[t.columns.get_level_values(0) == brand]
-        confirm(len(col) == 1)
+        ensure(len(col) == 1)
         t.loc[:, col] = (
             t.loc[:, col]  # returns a single column DataFrame
             .pipe(lambda x: x[x.columns[0]])  # make as Series
@@ -230,7 +235,7 @@ def get_relevant_dates(t: pd.DataFrame) -> pd.DataFrame:
 
     # get the Date column name
     cols = [col for col in t.columns if "Date" in col]
-    confirm(len(cols) == 1)
+    ensure(len(cols) == 1)
 
     # assumes dates in strings are ordered from first to last
     tokens = tokenise_dates(t[cols[0]])
@@ -256,7 +261,7 @@ def clean(table: pd.DataFrame) -> pd.DataFrame:
 def flatten_col_names(columns: pd.Index) -> list[str]:
     """Flatten the hierarchical column index."""
 
-    confirm(columns.nlevels >= 2)
+    ensure(columns.nlevels >= 2)
     flatter = [
         " ".join(col).strip() if col[0] != col[1] else col[0] for col in columns.values
     ]
@@ -350,10 +355,10 @@ DATA_DIR = "../data/"
 FILE_TYPE = ".csv"
 
 
-def _common_storage(
+def _init_common_storage(
     data_dir: str,
 ) -> str:
-    """Path creation and today getting."""
+    """Initialisation: Path creation and today getting."""
 
     Path(data_dir).mkdir(parents=True, exist_ok=True)
     today = str(date.today()).replace("-", "")
@@ -366,7 +371,7 @@ def store(
 ) -> None:
     """Save the captured data to file."""
 
-    today = _common_storage(data_dir)
+    today = _init_common_storage(data_dir)
     for label, table in dictionary.items():
         filename = f"{DATA_DIR}{label}-{today}{FILE_TYPE}"
         table.to_csv(filename)
@@ -381,7 +386,7 @@ def retrieve(
     data has not been captured for today."""
 
     data = {}
-    today = _common_storage(data_dir)
+    today = _init_common_storage(data_dir)
     capture_date = today if capture_date is None else capture_date
     directory = Path(data_dir)
     for file in directory.glob(f"*{capture_date}{FILE_TYPE}"):
