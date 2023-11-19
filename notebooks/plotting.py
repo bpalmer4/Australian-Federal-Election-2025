@@ -554,9 +554,17 @@ def plot_loess(
             _, ax = initiate_plot()
             for line, color in zip(selected.columns, colors):
                 chart_lines[line].plot(ax=ax, c=color, label=line)
-                ax.scatter(selected.index, selected[line], c=color, s=5)
                 if len(selected.columns) == 1:
+                    add_data_points_by_pollster(
+                        ax,
+                        df=data[label],
+                        column=line,
+                        p_color="#444444",
+                    )
                     annotate_min_max_end(ax, chart_lines[line])
+                else:
+                    # anonymous data points
+                    ax.scatter(selected.index, selected[line], c=color, s=5)
 
             # manage default and additional arguments for finalise_plot()
             defaults = {  # default arguments for finalise_plot()
@@ -567,9 +575,10 @@ def plot_loess(
                 "y50": True,
                 "y0": True,
                 "show": False,
-                "legend": LEGEND_SET,
+                "legend": LEGEND_SET | {"ncols": 2, "fontsize": "xx-small"},
                 "concise_dates": True,
                 **footers,
             }
+            
             kwargs_copy, defaults = generate_defaults(kwargs, defaults)
             finalise_plot(ax, **defaults, **kwargs_copy)

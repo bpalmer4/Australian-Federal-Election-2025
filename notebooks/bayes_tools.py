@@ -62,7 +62,7 @@ def prepare_data_for_analysis(
     Returns a python dict with all the necessary values within."""
 
     # make sure data is in date order and uniquely indexed
-    df = df.copy().sort_values(MIDDLE_DATE).reset_index(drop=True)
+    df = df.sort_values(MIDDLE_DATE).reset_index(drop=True)
     if kwargs.get("jitter_dates", False):
         df = _jitter_for_unique_dates(df)
 
