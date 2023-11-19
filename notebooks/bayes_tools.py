@@ -1,18 +1,18 @@
 """Tools for doing Bayesian aggregation of polls"""
-import sys
 from itertools import product
 from operator import mul
 from typing import Any, Iterable, Mapping, Optional
 
 import arviz as az
+from IPython.display import display
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pymc as pm
 import pytensor.tensor as pt
 
-import plotting
 from common import MIDDLE_DATE, ensure
+import plotting
 
 
 # --- Data preparation
@@ -48,9 +48,7 @@ def _jitter_for_unique_dates(
                 break
 
     # collisions may remain if too many to adjust within max_movement
-    if df[column].duplicated().any():
-        print("Could not successfully jitter dates.")
-        sys.exit(-1)
+    ensure(not df[column].duplicated().any(), "Could not successfully jitter dates.")
 
     return df
 
@@ -71,7 +69,7 @@ def prepare_data_for_analysis(
     # get our zero centered observations, ignore missing data
     # assume data in percentage points (0..100)
     y = df[column].dropna()
-    df = df.loc[y.index]  # consistency, in case there were nulls in y
+    df = df.loc[y.index]  # for consistency, in case there were nulls in y
     centre_offset = -y.mean()
     zero_centered_y = y + centre_offset
     n_polls = len(zero_centered_y)
@@ -86,12 +84,13 @@ def prepare_data_for_analysis(
     poll_day = ((poll_date - day_zero) / pd.Timedelta(days=1)).astype(int)
     poll_day_c_ = np.c_[poll_day]  # numpy column vector of poll_days for GP
 
-    # sanity checks
-    if (left_anchor and day_zero > df[MIDDLE_DATE].min()) or (
-        right_anchor and last_day < df[MIDDLE_DATE].max()
-    ):
-        print("Anchored date(s) should be before/after poll dates.")
-        sys.exit(-1)
+    # sanity checks - anchors must be before or after polling data
+    ensure(
+        (left_anchor and day_zero < df[MIDDLE_DATE].min())
+        or (right_anchor and last_day > df[MIDDLE_DATE].max())
+        or (not left_anchor and not right_anchor),
+        "Anchors must be outside of the range of polling dates.",
+    )
 
     # get our poll-branding information
     poll_firm = df.Brand.astype("category").cat.codes
@@ -133,7 +132,7 @@ def temporal_model(
     inputs: dict[str, Any], model: pm.Model, **kwargs
 ) -> pt.TensorVariable:
     """The temporal (hidden daily voting intention) model component.
-    Used in Gaussian Random Walk (GRW) models.
+    Used in Gaussian Random Walk (GRW and GRWLA) models.
     Note: setting the innovation through a prior
     often results in a model that needs many samples to
     overcome poor traversal of the posterior."""
@@ -187,7 +186,8 @@ def core_likelihood(
     house_effects: pt.TensorVariable,
     **kwargs,
 ) -> None:
-    """Likelihood for both GP and GRW models."""
+    """Likelihood for both GP and GRW models. But you
+    must pass grw=False for GP analysis."""
 
     # check for specified parameters
     likelihood = kwargs.get("likelihood", "Normal")
@@ -253,7 +253,8 @@ def grw_observational_model(
     **kwargs,
 ) -> None:
     """Observational model (likelihood) component.
-    Used with GRW models."""
+    Used with GRW models. Model can be either left or right
+    anchored."""
 
     core_likelihood(inputs, model, voting_intention, house_effects, **kwargs)
 
@@ -327,24 +328,42 @@ def gp_prior(
     covariance matrix).
 
     Also note: for quick test runs, length_scale and eta can be fixed
-    to (say) 20 and 1.2 respectively. With both specified, the model runs
+    to (say) 40 and 1.6 respectively. With both specified, the model runs
     in around 1.4 seconds. With one or both unspecified, it takes about
-    7-8 minutes per run."""
+    20 minutes per run, sometimes with divergences."""
 
     # check for specified parameters
     length_scale = kwargs.get("length_scale", None)
     eta = kwargs.get("eta", None)
+    eta_prior = kwargs.get("eta_prior", "HalfNormal")
 
     # construct the gaussian prior
     with model:
         if length_scale is None:
-            gamma_hint = {"alpha": 20, "beta": 1}
+            # a length_scale around 40 appears to work reasonably
+            gamma_hint = {"alpha": 40, "beta": 1}
             print(f"length_scale Gamma prior: {gamma_hint}")
             length_scale = pm.Gamma("length_scale", **gamma_hint)
+            # Note: with the exponentiated quadratic kernel (without eta) ...
+            #       at ls, correlation is around 0.61,
+            #       at 2 * ls, correlation is around 0.14,
+            #       at 3 * ls, correlation is around 0.01, etc.
+            #       https://stats.stackexchange.com/questions/445484/
+
         if eta is None:
-            halfnormal_hint = {"sigma": 5}
-            print(f"eta HalfNormal prior: {halfnormal_hint}")
-            eta = pm.HalfNormal("eta", **halfnormal_hint)
+            # an eta around 1.6 appers to work well
+            hint, function = {
+                # I think HalfCauchy works best of those below
+                "HalfCauchy": ({"beta": 4}, pm.HalfCauchy),
+                "Gamma": ({"alpha": 2, "beta": 1}, pm.Gamma),
+                "TruncatedNormal": (
+                    {"lower": 0.01, "upper": 1000, "mu": 1.6, "sigma": 3},
+                    pm.TruncatedNormal,
+                ),
+            }.get(eta_prior, ({"beta": 4}, pm.HalfNormal))
+            print(f"eta {function.__name__} prior: {hint}")
+            eta = function("eta", **hint)
+
         cov = eta**2 * pm.gp.cov.ExpQuad(1, length_scale)
         gp = pm.gp.Latent(cov_func=cov)
         voting_intention = gp.prior("voting_intention", X=inputs["poll_day_c_"])
@@ -354,7 +373,7 @@ def gp_prior(
 def gp_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
     """PyMC model for pooling/aggregating voter opinion polls,
     using a Gaussian Process (GP). Note: **kwargs allows one to
-    pass length_scale and eta to gp_prior() and/or approach,
+    pass length_scale and eta to gp_prior() and/or pass approach,
     nu and sigma to gp_likelihood()."""
 
     model = pm.Model()
@@ -385,7 +404,7 @@ def report_glitches(idata: az.InferenceData) -> str:
 
     try:
         diverging_count = int(np.sum(idata.sample_stats.diverging))
-    except (ValueError, AttributeError):  # No sample_stats, or no `.diverging`
+    except (ValueError, AttributeError):  # No sample_stats, or no .diverging
         diverging_count = 0
     print(text := f"{diverging_count} divergences")
     if diverging_count:
@@ -432,10 +451,22 @@ def generate_model_map(
         display(gv)
 
 
+def _get_var(var_name: str, idata: az.InferenceData) -> pd.DataFrame:
+    """Extract the chains/draws for a specified var_name."""
+
+    return (
+        az.extract(idata, var_names=var_name)
+        .transpose("sample", ...)
+        .to_dataframe()[var_name]
+        .unstack(level=2)
+        .T
+    )
+
+
 def plot_univariate(
     idata: az.InferenceData,
     var_names: str | Iterable[str],
-    hdi_prob: float = 0.80,
+    hdi_prob: float = 0.95,
     title_stem: str = "",
     **kwargs,
 ) -> None:
@@ -464,18 +495,6 @@ PERCENTS = [2.5, 12.5, 25, 37.5, 47.5]
 _COLORS = [(p - min(PERCENTS)) / (max(PERCENTS) - min(PERCENTS)) for p in PERCENTS]
 MIN_COLOR = 0.25
 COLOR_FRACS = [c * (1.0 - MIN_COLOR) + MIN_COLOR for c in _COLORS]
-
-
-def _get_var(var_name: str, idata: az.InferenceData) -> pd.DataFrame:
-    """Extract the chains/draws for a specified var_name."""
-
-    return (
-        az.extract(idata, var_names=var_name)
-        .transpose("sample", ...)
-        .to_dataframe()[var_name]
-        .unstack(level=2)
-        .T
-    )
 
 
 def plot_voting(inputs, idata, palette, **kwargs) -> pd.Series:
@@ -618,11 +637,11 @@ def plot_std_set(
 
     core_plot_args: Mapping = {
         "show": show,
-        "rheader": None if not glitches else {"rheader": glitches},
+        "rheader": (None if not glitches else glitches),
     }
 
     # plot single variables from the models
-    plot_univariate(
+    univariate = plot_univariate(
         idata,
         var_names=(
             "length_scale",
@@ -637,6 +656,7 @@ def plot_std_set(
         title_stem=title_stem,
         **core_plot_args,
     )
+    print(univariate)
 
     # plot voting intention over time
     palette = plotting.get_party_palette(title_stem)
