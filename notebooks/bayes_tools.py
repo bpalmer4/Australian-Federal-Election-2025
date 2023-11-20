@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pymc as pm
 import pytensor.tensor as pt
+import scipy.stats as ss
 
 from common import MIDDLE_DATE, ensure
 import plotting
@@ -572,6 +573,54 @@ def plot_voting(inputs, idata, palette, **kwargs) -> pd.Series:
     return middle
 
 
+def plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
+    """Plot house effects using kernel density estimates (KDE)."""
+    
+    colors = [
+        "maroon", 
+        "red",
+        "hotpink",
+        "brown",
+        "darkorange",
+        "olive",
+        "gold",
+        "green",
+        "teal",
+        "royalblue",
+        "navy",
+        "purple",
+        "grey",
+        "black",
+    ]
+    if len(colors) < len(df.columns):
+        print('Warning: plot_he_kde() does not have enough unique colors')
+        return
+        
+    fig, ax = plotting.initiate_plot()
+    for index, col in enumerate(df.columns):
+        mini, maxi = df[col].quantile([0.0005, 0.9995]).to_list()  # avoid super long tails
+        x = np.linspace(mini, maxi, 1000)
+        kde = ss.gaussian_kde(df[col])
+        y = kde.evaluate(x)
+        pd.Series(y, index=x).plot.line(ax=ax, color=colors[index], label=col)
+
+    ax.axvline(x=0, c="#333333", lw=0.75)
+    ax.set_yticklabels([])
+    defaults = {  # default arguments for finalise_plot()
+        "xlabel": "Relative effect (percentage points)",
+        "ylabel": "Probability density",
+        "show": False,
+        "tag": "kde",
+        "y0": True,
+        "zero_y": True,
+        "legend": plotting.LEGEND_SET | {"ncols": 1, "fontsize": "xx-small"},
+        **plotting.footers,
+    }
+    kwargs_copy, defaults = plotting.generate_defaults(kwargs, defaults)
+    plotting.finalise_plot(ax, **defaults, **kwargs_copy)
+    plotting.finalise_plot(ax, show=True)
+
+
 def plot_house_effects(
     inputs: dict[str, Any],
     idata: az.InferenceData,
@@ -585,6 +634,9 @@ def plot_house_effects(
     middle = df.quantile(0.5, axis=1).sort_values()
     df = df.reindex(middle.index)
 
+    # plot kde
+    plot_he_kde(df.T, kwargs)
+    
     # plot quantiles, with text over median
     _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
@@ -613,7 +665,7 @@ def plot_house_effects(
             zorder=i + 2,
         )
     ax.tick_params(axis="y", labelsize="small")
-    ax.axvline(0, c="darkgrey", lw=1)
+    ax.axvline(x=0, c="#333333", lw=0.75)
     defaults = {  # default arguments for finalise_plot()
         "xlabel": "Relative effect (percentage points)",
         "ylabel": None,
