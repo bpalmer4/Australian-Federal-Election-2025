@@ -336,7 +336,7 @@ def gp_prior(
     # check for specified parameters
     length_scale = kwargs.get("length_scale", None)
     eta = kwargs.get("eta", None)
-    eta_prior = kwargs.get("eta_prior", "HalfNormal")
+    eta_prior = kwargs.get("eta_prior", "HalfCauchy")
 
     # construct the gaussian prior
     with model:
@@ -358,14 +358,14 @@ def gp_prior(
                 "HalfCauchy": ({"beta": 4}, pm.HalfCauchy),
                 "Gamma": ({"alpha": 2, "beta": 1}, pm.Gamma),
                 "TruncatedNormal": (
-                    {"lower": 0.01, "upper": 1000, "mu": 1.6, "sigma": 3},
+                    {"lower": 0.5, "upper": 1000, "mu": 1.6, "sigma": 3},
                     pm.TruncatedNormal,
                 ),
             }.get(eta_prior, ({"beta": 4}, pm.HalfNormal))
             print(f"eta {function.__name__} prior: {hint}")
             eta = function("eta", **hint)
 
-        cov = eta**2 * pm.gp.cov.ExpQuad(1, length_scale)
+        cov = (eta**2) * pm.gp.cov.ExpQuad(input_dim=1, ls=length_scale)
         gp = pm.gp.Latent(cov_func=cov)
         voting_intention = gp.prior("voting_intention", X=inputs["poll_day_c_"])
     return voting_intention
@@ -386,20 +386,22 @@ def gp_model(inputs: dict[str, Any], **kwargs) -> pm.Model:
 
 # --- Condition the model on the data
 def report_glitches(idata: az.InferenceData) -> str:
-    """Display some quick summary diagnostics."""
+    """Display summary diagnostics from the sampling process.
+    Return a string that can be displayed on charts if
+    there has been any Bayesian sampling issues."""
 
     glitches = []
     summary = az.summary(idata)
 
     max_r_hat = 1.01
     statistic = summary.r_hat.max()
-    print(text := f"max_r_hat: {statistic}")
+    print(text := f"Max r_hat: {statistic}")
     if statistic > max_r_hat:
         glitches.append(text)
 
-    min_ess = 500
+    min_ess = 400
     statistic = summary[["ess_tail", "ess_bulk"]].min().min()
-    print(text := f"min_ess: {statistic}")
+    print(text := f"Min ess: {statistic}")
     if statistic < min_ess:
         glitches.append(text)
 
@@ -407,13 +409,11 @@ def report_glitches(idata: az.InferenceData) -> str:
         diverging_count = int(np.sum(idata.sample_stats.diverging))
     except (ValueError, AttributeError):  # No sample_stats, or no .diverging
         diverging_count = 0
-    print(text := f"{diverging_count} divergences")
+    print(text := f"Divergences: {diverging_count}")
     if diverging_count:
         glitches.append(text)
 
-    return (
-        "" if not glitches else f'Issues with Bayesian sampling: {", ".join(glitches)}'
-    )
+    return f"Bayesian sampling issues: {', '.join(glitches)}" if glitches else ""
 
 
 def draw_samples(
@@ -573,36 +573,26 @@ def plot_voting(inputs, idata, palette, **kwargs) -> pd.Series:
     return middle
 
 
-def plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
+def _plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
     """Plot house effects using kernel density estimates (KDE)."""
-    
-    colors = [
-        "maroon", 
-        "red",
-        "hotpink",
-        "brown",
-        "darkorange",
-        "olive",
-        "gold",
-        "green",
-        "teal",
-        "royalblue",
-        "navy",
-        "purple",
-        "grey",
-        "black",
-    ]
+
+    colors = plotting.MULTI_COLORS
     if len(colors) < len(df.columns):
-        print('Warning: plot_he_kde() does not have enough unique colors')
+        print("Warning: plot_he_kde() does not have enough unique colors")
         return
-        
+
     fig, ax = plotting.initiate_plot()
+    styles = plotting.STYLES * 4
     for index, col in enumerate(df.columns):
-        mini, maxi = df[col].quantile([0.0005, 0.9995]).to_list()  # avoid super long tails
+        mini, maxi = (
+            df[col].quantile([0.0005, 0.9995]).to_list()
+        )  # avoid super long tails
         x = np.linspace(mini, maxi, 1000)
         kde = ss.gaussian_kde(df[col])
         y = kde.evaluate(x)
-        pd.Series(y, index=x).plot.line(ax=ax, color=colors[index], label=col)
+        pd.Series(y, index=x).plot.line(
+            ax=ax, ls=styles[index], lw=3, color=colors[index], label=col
+        )
 
     ax.axvline(x=0, c="#333333", lw=0.75)
     ax.set_yticklabels([])
@@ -621,23 +611,9 @@ def plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
     plotting.finalise_plot(ax, show=True)
 
 
-def plot_house_effects(
-    inputs: dict[str, Any],
-    idata: az.InferenceData,
-    palette: str,
-    **kwargs,
-) -> None:
-    """Plot the House effects for both GRW and GP models."""
+def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs) -> None:
+    """Plot house effects as a stacked bar chart."""
 
-    # get the data as a DataFrame
-    df = _get_var("house_effects", idata).rename(index=inputs["firm_map"])
-    middle = df.quantile(0.5, axis=1).sort_values()
-    df = df.reindex(middle.index)
-
-    # plot kde
-    plot_he_kde(df.T, kwargs)
-    
-    # plot quantiles, with text over median
     _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
     for i, p in enumerate(PERCENTS):
@@ -677,15 +653,44 @@ def plot_house_effects(
     plotting.finalise_plot(ax, **defaults, **kwargs_copy)
 
 
+def plot_house_effects(
+    inputs: dict[str, Any],
+    idata: az.InferenceData,
+    palette: str,
+    **kwargs,
+) -> None:
+    """Plot the House effects for both GRW and GP models.
+    Choice of charts by setting bool kwargs plot_he_bar and
+    plot_he_kde for either/both (a) stacked bar chart, or
+    (b) kernel density estimates chart."""
+
+    # get the data as a DataFrame
+    df = _get_var("house_effects", idata).rename(index=inputs["firm_map"])
+    middle = df.quantile(0.5, axis=1).sort_values()
+    df = df.reindex(middle.index)
+
+    he_bar = kwargs.pop("plot_he_bar", True)  # default
+    he_kde = kwargs.pop("plot_he_kde", False)  # use pop to remove from kwargs
+
+    if he_bar:
+        _plot_he_bar(df, palette, middle, kwargs)
+
+    if he_kde:
+        _plot_he_kde(df.T, kwargs)
+
+
 def plot_std_set(
     inputs: dict[str, Any],
     idata: az.InferenceData,
-    title_stem: str,
-    glitches: str,
-    show: bool,
+    **kwargs,
 ) -> pd.Series:  # returns the median sample
-    """Produce the standard set of plots for a Bayesian
-    Analysis. Return the median sample."""
+    """Produce the standard set of charts for a Bayesian
+    Analysis. Return the median voting intention sample."""
+
+    # we dont want to pass these arguments on
+    glitches: str = kwargs.pop("glitches", "")
+    show: bool = kwargs.pop("show", False)
+    title_stem = kwargs.pop("title_stem", "title")
 
     core_plot_args: Mapping = {
         "show": show,
@@ -708,7 +713,6 @@ def plot_std_set(
         title_stem=title_stem,
         **core_plot_args,
     )
-    print(univariate)
 
     # plot voting intention over time
     palette = plotting.get_party_palette(title_stem)
@@ -726,7 +730,7 @@ def plot_std_set(
         idata,
         palette,
         title=f"House Effects: {title_stem}",
-        **core_plot_args,
+        **(core_plot_args | kwargs),
     )
 
     return middle

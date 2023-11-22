@@ -3,9 +3,12 @@
    maintaining a consistent look and feel for chart
    outputs. """
 
+import itertools
+
 # --- imports
 # system imports
 import re
+from itertools import cycle
 from pathlib import Path
 from typing import Iterable, Mapping, Optional
 
@@ -61,10 +64,29 @@ MARKERS = [
     "$z$",
 ]
 
+MULTI_COLORS = (
+    "maroon",
+    "red",
+    "hotpink",
+    "brown",
+    "darkorange",
+    "goldenrod",
+    "green",
+    "teal",
+    "royalblue",
+    "navy",
+    "purple",
+    "lightgrey",
+    "black",
+)
+ROTATING_COLOR = cycle(MULTI_COLORS)  # next(ROTATING_COLOR)
+
+STYLES = ("solid", "dotted", "dashed", "dashdot")
+ROTATING_STYLE = cycle(STYLES)  # next(ROTATING_STYLE)
+
 RFOOTER = "marktheballot.blogspot.com"
 LFOOTER = "Australian polling data sourced from Wikipedia. "
 footers = {"lfooter": LFOOTER, "rfooter": RFOOTER}
-
 
 # --- initialise plot
 
@@ -109,6 +131,7 @@ def amalgamate_other(
 def get_party_palette(party_text: str) -> str:
     """Return a matplotlib color-map name based on party."""
 
+    # Note: light to dark maps work best
     if "alp" in party_text.lower():
         return "Reds"
     if "l/np" in party_text.lower():
@@ -370,6 +393,7 @@ def finalise_plot(axes: plt.Axes, **kwargs) -> None:
        - show - Boolean - whether to show the plot or not
        - zero_y - bool - ensure y=0 is included in the plot.
        - y0 - bool - highlight the y=0 line on the plot
+       - y50 - bool - highlight the y=50 line on the plot
        - dont_save - bool - dont save the plot to the file system
        - dont_close - bool - dont close the plot
        - dpi - int - dots per inch for the saved chart
@@ -520,12 +544,11 @@ def generate_defaults(
     on what is in kwargs. Returns kwargs_adjusted and
     defaults_adjusted."""
 
-    kwargs_adjusted = kwargs.copy()
+    # preserve original
+    kwargs_adjusted = kwargs.copy()  
     defaults_adjusted = defaults.copy()
     for key in defaults_adjusted:
-        if key in kwargs_adjusted:
-            defaults_adjusted[key] = kwargs_adjusted[key]
-            del kwargs_adjusted[key]
+        defaults_adjusted[key] = kwargs_adjusted.pop(key, defaults_adjusted[key])
     return kwargs_adjusted, defaults_adjusted
 
 
