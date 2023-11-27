@@ -417,15 +417,13 @@ def report_glitches(idata: az.InferenceData) -> str:
 
 
 def draw_samples(
-    model: pm.Model, n_cores: int = 10, **kwargs
+    model: pm.Model, **kwargs
 ) -> tuple[az.InferenceData, str]:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
     with model:
         idata = pm.sample(
             progressbar=True,
-            cores=n_cores,
-            chains=n_cores,
             return_inferencedata=True,
             **kwargs,
         )
