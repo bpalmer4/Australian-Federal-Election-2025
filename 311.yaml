@@ -1,0 +1,44 @@
+# micromamba env create -f 311.yaml
+# Note: in conda-forge, pytensor 2.18 requires python 3.11
+name: 311
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python >=3.11,<3.12
+  - pandas
+  - numpy
+  - matplotlib
+  - seaborn
+  - statsmodels 
+  - scipy 
+  - scikit-learn 
+  - nltk
+  - jupyter 
+  - jupyterlab 
+  - nodejs 
+  - watermark
+  - jupyterlab-spellchecker 
+  - jupyterlab_code_formatter
+  - pyarrow 
+  - fastparquet 
+  - h5py
+  - selenium
+  - webdriver-manager
+  - lxml 
+  - bs4 
+  - openpyxl 
+  - xlrd 
+  - requests_cache
+  - arrow 
+  - polars 
+  - pylint 
+  - flake8 
+  - black 
+  - nbqa 
+  - ruff 
+  - isort
+  - pymc >= 5.10.0 
+  - pytensor >= 2.18.1
+  - numpyro
+  - jax
