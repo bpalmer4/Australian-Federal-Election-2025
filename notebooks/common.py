@@ -26,5 +26,5 @@ def ensure(condition: bool, message: str = "", exit_code: int = 1) -> None:
     in production code (although the resulting exception could be caught)."""
 
     if not condition:
-        exit_arg: int | str = message if message else exit_code 
+        exit_arg: int | str = message if message else exit_code
         sys.exit(exit_arg)
