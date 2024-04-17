@@ -54,6 +54,7 @@ def _jitter_for_unique_dates(
     return df
 
 
+TAIL_CENTRED = "tail_centred"
 def prepare_data_for_analysis(
     df: pd.DataFrame,
     column: str,
@@ -71,7 +72,13 @@ def prepare_data_for_analysis(
     # assume data in percentage points (0..100)
     y = df[column].dropna()
     df = df.loc[y.index]  # for consistency, in case there were nulls in y
-    centre_offset = -y.mean()
+    if (n := kwargs.get(TAIL_CENTRED, 0)):
+        # centre around last n polls 
+        # to minimise mean-reversion issues with GP, but may introduce bias
+        centre_offset = -y.iloc[-n:].mean()
+        del kwargs[TAIL_CENTRED]
+    else:
+        centre_offset = -y.mean()
     zero_centered_y = y + centre_offset
     n_polls = len(zero_centered_y)
 
