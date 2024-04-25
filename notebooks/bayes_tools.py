@@ -621,6 +621,7 @@ def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs) -> N
 
     _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
+    vi_middle = df.quantile(0.5, axis=1)
     for i, p in enumerate(PERCENTS):
         quants = p, 100 - p
         label = f"{quants[1] - quants[0]}% HDI"
@@ -634,7 +635,7 @@ def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs) -> N
             label=label,
             zorder=i + 1,
         )
-    for index, value in middle.items():
+    for index, value in vi_middle.items():
         ax.text(
             s=f"{value:.1f}",
             x=value,
@@ -657,7 +658,42 @@ def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs) -> N
     kwargs_copy, defaults = plotting.generate_defaults(kwargs, defaults)
     plotting.finalise_plot(ax, **defaults, **kwargs_copy)
 
+    return vi_middle
 
+
+def plot_residuals(vi_middle, he_middle, title_stem, inputs, **kwargs) -> None:
+    """If polling company methodologies have not changed, then
+    we would expect the residuals to be normally distributed."""
+
+    print(kwargs.keys())  # debug   
+
+    minimum_required = 10
+    vi_middle = vi_middle.to_period("D")
+    poll_firm = inputs['poll_firm'].map(inputs['firm_map'])
+    dates = inputs['poll_date']
+    poll_days = inputs['poll_day']
+    for firm in sorted(he_middle.index):
+        selected_polls = poll_firm[poll_firm == firm].index
+        if len(selected_polls) < minimum_required:
+            continue
+        adjusted_polls = inputs['y'].loc[selected_polls] - he_middle[firm]
+        key_dates = dates.loc[selected_polls]
+        adjusted_polls.index = key_dates
+        on_day = vi_middle[vi_middle.index.isin(key_dates)]
+        residual = adjusted_polls - on_day
+        
+        ax = residual.plot.bar()
+        ax.tick_params(axis='x', labelsize='x-small')
+        ax.tick_params(axis='y', labelsize='x-small')
+        plotting.finalise_plot(
+            ax,
+            title=f"Residuals for {title_stem}:\n{firm}",
+            xlabel=None,
+            ylabel="Percentage points",
+            **kwargs
+        )
+
+        
 def plot_house_effects(
     inputs: dict[str, Any],
     idata: az.InferenceData,
@@ -671,17 +707,20 @@ def plot_house_effects(
 
     # get the data as a DataFrame
     df = _get_var("house_effects", idata).rename(index=inputs["firm_map"])
-    middle = df.quantile(0.5, axis=1).sort_values()
-    df = df.reindex(middle.index)
+    he_middle = df.quantile(0.5, axis=1).sort_values()
+    df = df.reindex(he_middle.index)
 
     he_bar = kwargs.pop("plot_he_bar", True)  # default
     he_kde = kwargs.pop("plot_he_kde", False)  # use pop to remove from kwargs
 
     if he_bar:
-        _plot_he_bar(df, palette, middle, kwargs)
+        _plot_he_bar(df, palette, he_middle, kwargs)
 
     if he_kde:
-        _plot_he_kde(df.T, kwargs)
+        _plot_he_kde(df.T, **kwargs)
+    
+    return he_middle
+    
 
 
 def plot_std_set(
@@ -701,9 +740,9 @@ def plot_std_set(
         "show": show,
         "rheader": (None if not glitches else glitches),
     }
-
+    
     # plot single variables from the models
-    univariate = plot_univariate(
+    plot_univariate(
         idata,
         var_names=(
             "length_scale",
@@ -721,7 +760,7 @@ def plot_std_set(
 
     # plot voting intention over time
     palette = plotting.get_party_palette(title_stem)
-    middle = plot_voting(
+    vi_middle = plot_voting(
         inputs,
         idata,
         palette,
@@ -730,7 +769,7 @@ def plot_std_set(
     )
 
     # plot house effects
-    plot_house_effects(
+    he_middle = plot_house_effects(
         inputs,
         idata,
         palette,
@@ -738,4 +777,7 @@ def plot_std_set(
         **(core_plot_args | kwargs),
     )
 
-    return middle
+    plot_residuals(vi_middle, he_middle, title_stem, inputs,
+                   **(core_plot_args | kwargs))
+
+    return vi_middle
