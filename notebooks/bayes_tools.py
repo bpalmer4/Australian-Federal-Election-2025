@@ -1,4 +1,5 @@
 """Tools for doing Bayesian aggregation of polls"""
+
 from itertools import product
 from operator import mul
 from typing import Any, Iterable, Mapping, Optional
@@ -55,6 +56,8 @@ def _jitter_for_unique_dates(
 
 
 TAIL_CENTRED = "tail_centred"
+
+
 def prepare_data_for_analysis(
     df: pd.DataFrame,
     column: str,
@@ -72,8 +75,8 @@ def prepare_data_for_analysis(
     # assume data in percentage points (0..100)
     y = df[column].dropna()
     df = df.loc[y.index]  # for consistency, in case there were nulls in y
-    if (n := kwargs.get(TAIL_CENTRED, 0)):
-        # centre around last n polls 
+    if n := kwargs.get(TAIL_CENTRED, 0):
+        # centre around last n polls
         # to minimise mean-reversion issues with GP, but may introduce bias
         centre_offset = -y.iloc[-n:].mean()
         del kwargs[TAIL_CENTRED]
@@ -423,9 +426,7 @@ def report_glitches(idata: az.InferenceData) -> str:
     return f"Bayesian sampling issues: {', '.join(glitches)}" if glitches else ""
 
 
-def draw_samples(
-    model: pm.Model, **kwargs
-) -> tuple[az.InferenceData, str]:
+def draw_samples(model: pm.Model, **kwargs) -> tuple[az.InferenceData, str]:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
     with model:
@@ -665,35 +666,33 @@ def plot_residuals(vi_middle, he_middle, title_stem, inputs, **kwargs) -> None:
     """If polling company methodologies have not changed, then
     we would expect the residuals to be normally distributed."""
 
-    print(kwargs.keys())  # debug   
-
-    minimum_required = 10
+    minimum_required = 3
     vi_middle = vi_middle.to_period("D")
-    poll_firm = inputs['poll_firm'].map(inputs['firm_map'])
-    dates = inputs['poll_date']
-    poll_days = inputs['poll_day']
+    poll_firm = inputs["poll_firm"].map(inputs["firm_map"])
+    dates = inputs["poll_date"]
+    poll_days = inputs["poll_day"]
     for firm in sorted(he_middle.index):
         selected_polls = poll_firm[poll_firm == firm].index
         if len(selected_polls) < minimum_required:
             continue
-        adjusted_polls = inputs['y'].loc[selected_polls] - he_middle[firm]
+        adjusted_polls = inputs["y"].loc[selected_polls] - he_middle[firm]
         key_dates = dates.loc[selected_polls]
         adjusted_polls.index = key_dates
         on_day = vi_middle[vi_middle.index.isin(key_dates)]
         residual = adjusted_polls - on_day
-        
+
         ax = residual.plot.bar()
-        ax.tick_params(axis='x', labelsize='x-small')
-        ax.tick_params(axis='y', labelsize='x-small')
+        ax.tick_params(axis="x", labelsize="x-small")
+        ax.tick_params(axis="y", labelsize="x-small")
         plotting.finalise_plot(
             ax,
             title=f"Residuals for {title_stem}:\n{firm}",
             xlabel=None,
             ylabel="Percentage points",
-            **kwargs
+            **kwargs,
         )
 
-        
+
 def plot_house_effects(
     inputs: dict[str, Any],
     idata: az.InferenceData,
@@ -718,9 +717,8 @@ def plot_house_effects(
 
     if he_kde:
         _plot_he_kde(df.T, **kwargs)
-    
+
     return he_middle
-    
 
 
 def plot_std_set(
@@ -735,12 +733,13 @@ def plot_std_set(
     glitches: str = kwargs.pop("glitches", "")
     show: bool = kwargs.pop("show", False)
     title_stem = kwargs.pop("title_stem", "title")
+    residuals = kwargs.pop("residuals", False)
 
     core_plot_args: Mapping = {
         "show": show,
         "rheader": (None if not glitches else glitches),
     }
-    
+
     # plot single variables from the models
     plot_univariate(
         idata,
@@ -777,7 +776,9 @@ def plot_std_set(
         **(core_plot_args | kwargs),
     )
 
-    plot_residuals(vi_middle, he_middle, title_stem, inputs,
-                   **(core_plot_args | kwargs))
+    if residuals:
+        plot_residuals(
+            vi_middle, he_middle, title_stem, inputs, **(core_plot_args | kwargs)
+        )
 
     return vi_middle

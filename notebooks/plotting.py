@@ -93,7 +93,7 @@ footers = {"lfooter": LFOOTER, "rfooter": RFOOTER}
 
 def initiate_plot() -> tuple[plt.Figure, plt.Axes]:
     """Return a matplotlib figure and axes instance in a tuple."""
-    
+
     fig, axes = plt.subplots(figsize=(9, 4.5), constrained_layout=False)
     axes.margins(0.02)
     return fig, axes
@@ -545,7 +545,7 @@ def generate_defaults(
     defaults_adjusted."""
 
     # preserve original
-    kwargs_adjusted = kwargs.copy()  
+    kwargs_adjusted = kwargs.copy()
     defaults_adjusted = defaults.copy()
     for key in defaults_adjusted:
         defaults_adjusted[key] = kwargs_adjusted.pop(key, defaults_adjusted[key])
@@ -602,6 +602,6 @@ def plot_loess(
                 "concise_dates": True,
                 **footers,
             }
-            
+
             kwargs_copy, defaults = generate_defaults(kwargs, defaults)
             finalise_plot(ax, **defaults, **kwargs_copy)
