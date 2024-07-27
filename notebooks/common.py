@@ -1,4 +1,5 @@
 """Common constants, etc."""
+
 import sys
 
 # --- CONSTANTS

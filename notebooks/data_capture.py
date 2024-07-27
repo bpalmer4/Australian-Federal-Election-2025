@@ -344,8 +344,10 @@ def distribute_undecideds(
         )
         allocation = shares.mul(amount_to_share, axis=0)
         table.loc[should_redistribute, raw_cols] += allocation
-        print(f'For {pattern} distributed undecideds over '
-              f'{len(should_redistribute)/len(table) * 100:.2f}% of rows.')
+        print(
+            f"For {pattern} distributed undecideds over "
+            f"{len(should_redistribute)/len(table) * 100:.2f}% of rows."
+        )
 
     return table
 

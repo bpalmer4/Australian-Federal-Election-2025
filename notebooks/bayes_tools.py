@@ -504,7 +504,7 @@ MIN_COLOR = 0.25
 COLOR_FRACS = [c * (1.0 - MIN_COLOR) + MIN_COLOR for c in _COLORS]
 
 
-def plot_voting(inputs, idata, palette, **kwargs) -> pd.Series:
+def plot_voting(inputs, idata, previous: float, palette, **kwargs) -> pd.Series:
     """Plot voting intention from both GRW and GP models."""
 
     # get the relevant data as a DataFrame
@@ -556,6 +556,8 @@ def plot_voting(inputs, idata, palette, **kwargs) -> pd.Series:
         column=inputs["column"],
         p_color="#555555",
     )
+    # plot previous election
+    ax.axhline(y=previous, c="#555555", lw=0.75, ls="--", label="Previous election")
     # annotate the min, max and end
     middle = df.quantile(q=0.5, axis=1)
     plotting.annotate_min_max_end(ax, middle)
@@ -724,6 +726,7 @@ def plot_house_effects(
 def plot_std_set(
     inputs: dict[str, Any],
     idata: az.InferenceData,
+    previous: float,
     **kwargs,
 ) -> pd.Series:  # returns the median sample
     """Produce the standard set of charts for a Bayesian
@@ -762,6 +765,7 @@ def plot_std_set(
     vi_middle = plot_voting(
         inputs,
         idata,
+        previous,
         palette,
         title=f"Vote share: {title_stem}",
         **core_plot_args,
