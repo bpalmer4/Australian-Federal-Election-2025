@@ -68,6 +68,7 @@ def get_combined_table(
             # check table headers align ...
             combined_set = set(combined.columns)
             table_set = set(table.columns)
+            # print(table_set, combined_set)
             ensure(combined_set.issuperset(table_set), "Column name mismatch")
             combined = pd.concat((combined, table))
 

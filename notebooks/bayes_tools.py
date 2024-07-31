@@ -571,7 +571,7 @@ def plot_voting(inputs, idata, previous: float, palette, **kwargs) -> pd.Series:
         "show": False,
         "y50": True,
         "legend": plotting.LEGEND_SET
-        | {"fontsize": "xx-small", "loc": f"{space} left", "ncols": 2},
+        | {"fontsize": "xx-small", "loc": f"{space} left", "ncols": 3},
         "concise_dates": True,
         **plotting.footers,
     }
