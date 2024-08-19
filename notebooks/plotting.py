@@ -3,7 +3,6 @@
    maintaining a consistent look and feel for chart
    outputs. """
 
-import itertools
 
 # --- imports
 # system imports
@@ -15,6 +14,7 @@ from typing import Iterable, Mapping, Optional
 # data science imports
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -23,6 +23,9 @@ import statsmodels.api as sm
 from common import MIDDLE_DATE
 
 # --- constants - default settings
+plt.style.use("fivethirtyeight")
+mpl.rcParams["font.size"] = 12
+
 DEFAULT_FILE_TYPE = "png"
 DEFAULT_FIG_SIZE = (9, 4.5)
 DEFAULT_DPI = 300
