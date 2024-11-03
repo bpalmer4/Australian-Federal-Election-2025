@@ -46,7 +46,9 @@ def get_table_list(url: str) -> list[pd.DataFrame]:
 
 
 def get_combined_table(
-    df_list: list[pd.DataFrame], table_list: Optional[int] = None
+    df_list: list[pd.DataFrame], 
+    table_list: Optional[int] = None,
+    verbose: bool = False,
 ) -> Optional[pd.DataFrame]:
     """Get selected tables (by int in table_list) from Wikipedia page.
     Return a single merged table for the selected tables.
@@ -55,11 +57,15 @@ def get_combined_table(
           each year."""
 
     if not table_list:
+        if verbose:
+            print("No tables selected.")
         return None
     selected: list[pd.DataFrame] = [df_list[i] for i in table_list]
     combined: Optional[pd.DataFrame] = None
     for table in selected:
         table = table.copy()  # preserve original
+        if verbose:
+            print("DEBUG:", table.head())
         flat = flatten_col_names(table.columns)
         table.columns = flat
         if combined is None:
