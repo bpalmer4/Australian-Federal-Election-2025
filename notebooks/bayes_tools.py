@@ -103,10 +103,24 @@ def prepare_data_for_analysis(
         "Anchors must be outside of the range of polling dates.",
     )
 
-    # get our poll-branding information
-    poll_firm = df.Brand.astype("category").cat.codes
-    n_firms = len(poll_firm.unique())
-    firm_map = {code: firm for firm, code in zip(df.Brand, poll_firm)}
+    # get house effects inputs
+    empty_list: list[str] = list()
+    he_sum_exclusions: list[str] = sorted(kwargs.get("he_sum_exclusions", empty_list))
+    ensure(len(he_sum_exclusions) == len(set(he_sum_exclusions)), "Remove duplicate exclusion.")
+    ensure(all((e in df.Brand.unique() for e in he_sum_exclusions)), "Remove invalid exclusion.")
+    he_sum_inclusions: list[str] = sorted([e for e in df.Brand.unique() if e not in he_sum_exclusions])
+
+    # get pollster map - ensure polsters at end of the list are the excluded ones
+    firm_list = he_sum_inclusions + he_sum_exclusions
+    ensure(len(firm_list) == len(set(firm_list)), "Remove duplicate pollsters in the firm_list.")
+    n_firms = len(firm_list)
+    ensure(n_firms > len(he_sum_exclusions), "Number of exclusions == number of firms.")
+    firm_map = {firm: code for code, firm in enumerate(firm_list)}
+    poll_firm = [firm_map[b] for b in df.Brand]
+
+    # final sanity checks ...
+    MIN_HE = 1
+    ensure(len(he_sum_inclusions) >= MIN_HE, f"Need at least {MIN_HE} firm for house effects.")
 
     # Information
     if kwargs.get("verbose", False):
@@ -118,11 +132,17 @@ def prepare_data_for_analysis(
             f"Centre offset: {centre_offset}\n"
             f"Pollster map: {firm_map}\n"
             f"Polling days:\n{poll_day.values}\n"
+            f"House effects sum exclusions: {he_sum_exclusions}\n"
+            f"House effects sum inclusions: {he_sum_inclusions}\n"
         )
 
     # pop everything we need to know into a dictionary and return it
-    inputs = locals().copy()  # okay, this is a bit of a hack
-    del inputs["kwargs"]  # don't need the original kwargs
+    inputs = locals().copy()  # okay, this is a kludge hack
+    for k in ("kwargs", "empty_list", "MIN_HE", ): # remove from inputs
+        if k in inputs:
+            del inputs[k]
+    if kwargs.get("verbose", False):
+        print(f"Inputs: {inputs}")
     return inputs
 
 
@@ -176,13 +196,23 @@ def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVar
     """The house effects model. This model component is used with
     both the GRW and Gaussian Process (GP) models."""
 
+    house_effect_sigma = inputs.get("house_effect_sigma", 5.0)
     with model:
-        house_effect_sigma = 5.0
         if inputs["right_anchor"] is None and inputs["left_anchor"] is None:
-            # assume house effects sum to zero
-            house_effects = pm.ZeroSumNormal(
-                "house_effects", sigma=house_effect_sigma, shape=inputs["n_firms"]
-            )
+            if len(inputs["he_sum_exclusions"]) > 0:
+                zero_sum_he = pm.ZeroSumNormal(
+                    "zero_sum_he", sigma=house_effect_sigma, shape=len(inputs["he_sum_inclusions"])
+                )
+                as_is_he = pm.Normal(
+                    "as_is_he", sigma=house_effect_sigma, shape=len(inputs["he_sum_exclusions"])
+                )
+                house_effects = pm.Deterministic(
+                    "house_effects", var=pm.math.concatenate([zero_sum_he, as_is_he])
+                )
+            else:
+                house_effects = pm.ZeroSumNormal(
+                    "house_effects", sigma=house_effect_sigma, shape=inputs["n_firms"]
+                )
         else:
             house_effects = pm.Normal(
                 "house_effects", sigma=house_effect_sigma, shape=inputs["n_firms"]
@@ -599,7 +629,7 @@ def _plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
         kde = ss.gaussian_kde(df[col])
         y = kde.evaluate(x)
         pd.Series(y, index=x).plot.line(
-            ax=ax, ls=styles[index], lw=3, color=colors[index], label=col
+            ax=ax, ls=styles[index], lw=2, color=colors[index], label=col
         )
 
     ax.axvline(x=0, c="#333333", lw=0.75)
@@ -619,7 +649,7 @@ def _plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
     plotting.finalise_plot(ax, show=True)
 
 
-def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs) -> None:
+def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs: dict) -> None:
     """Plot house effects as a stacked bar chart."""
 
     _, ax = plotting.initiate_plot()
@@ -707,18 +737,19 @@ def plot_house_effects(
     (b) kernel density estimates chart."""
 
     # get the data as a DataFrame
-    df = _get_var("house_effects", idata).rename(index=inputs["firm_map"])
+    inv_map = {v: k for k, v in inputs["firm_map"].items()}
+    df = _get_var("house_effects", idata).rename(index=inv_map)
     he_middle = df.quantile(0.5, axis=1).sort_values()
     df = df.reindex(he_middle.index)
 
     he_bar = kwargs.pop("plot_he_bar", True)  # default
-    he_kde = kwargs.pop("plot_he_kde", False)  # use pop to remove from kwargs
+    he_kde = kwargs.pop("plot_he_kde", True)  # use pop to remove from kwargs
 
     if he_bar:
         _plot_he_bar(df, palette, he_middle, kwargs)
 
     if he_kde:
-        _plot_he_kde(df.T, **kwargs)
+        _plot_he_kde(df.T, kwargs)
 
     return he_middle
 
