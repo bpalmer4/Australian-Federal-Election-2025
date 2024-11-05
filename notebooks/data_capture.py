@@ -116,14 +116,15 @@ def fix_numerical_cols(t: pd.DataFrame) -> pd.DataFrame:
         "Primary vote",
         "2pp vote",
         "Sample",
-        "Preferred Prime Minister",
+        "Preferred prime minister",
         "Satisfied",
         "Dissatisfied",
         "Don't Know",
         "Net",
     )
+    fixable_cols_lower = [x.lower() for x in fixable_cols]
     for col in t.columns:
-        if not any(x in col for x in fixable_cols):
+        if not any(x in col.lower() for x in fixable_cols_lower):
             continue
         t[col] = (
             t[col]
