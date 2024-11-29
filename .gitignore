@@ -19,3 +19,5 @@ model-images/**
 notebooks/build
 automated/**
 notebooks/grave-yard/**
+redistributions/**
+
