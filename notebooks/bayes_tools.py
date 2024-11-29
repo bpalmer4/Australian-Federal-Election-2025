@@ -798,7 +798,7 @@ def plot_std_set(
         idata,
         previous,
         palette,
-        title=f"Vote share: {title_stem}",
+        title=f"Bayesian Aggregation: {title_stem}",
         **core_plot_args,
     )
 

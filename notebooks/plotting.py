@@ -557,15 +557,17 @@ def generate_defaults(
 
 def plot_loess(
     data: dict[str, pd.DataFrame],  # dictionary of polling data
-    plot_ins: dict[str, list[str]],  # dictionary of plot instructions
+    plot_ins: dict[str, dict[str, str]],  # dictionary of plot instructions
     **kwargs,  # any additional arguments for finalise_plot()
 ) -> None:
     """Work through the plotable dictionary of plot instructions
     to generate localised regression plots. Additional arguments
     are passed to finalise_plot()"""
 
-    for label, pattern_list in plot_ins.items():
-        for tag, pattern in enumerate(pattern_list):
+    tag = 0
+    for label, pattern_dict in plot_ins.items():
+        for pattern, title in pattern_dict.items():
+            tag = tag + 1
             # select relevant data for a given pattern
             selected = data[label][
                 sorted([x for x in data[label].columns if re.match(pattern, x)])
@@ -594,7 +596,7 @@ def plot_loess(
 
             # manage default and additional arguments for finalise_plot()
             defaults = {  # default arguments for finalise_plot()
-                "title": f"{LOWESS_DAYS}-day Localised Regression: {label.title()}",
+                "title": f"{LOWESS_DAYS}-day Localised Regression: {title}",
                 "xlabel": None,
                 "ylabel": "Per cent",
                 "tag": str(tag),
