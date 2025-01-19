@@ -17,6 +17,7 @@ charts/**
 data/**
 model-images/**
 notebooks/build
+notebooks/stan_work/**
 automated/**
 notebooks/grave-yard/**
 redistributions/**
