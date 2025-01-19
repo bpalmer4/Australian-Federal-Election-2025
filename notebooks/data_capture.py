@@ -5,11 +5,12 @@ from datetime import date
 from io import StringIO
 from pathlib import Path
 from time import time
-from typing import Optional, Sequence
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
 import requests
+from IPython.display import display
 from common import ALL_DATES, MIDDLE_DATE, ensure
 
 
@@ -45,29 +46,41 @@ def get_table_list(url: str) -> list[pd.DataFrame]:
     return df_list
 
 
+def flatten_col_names(columns: pd.Index) -> list[str]:
+    """Flatten the hierarchical column index."""
+
+    ensure(columns.nlevels >= 2)
+    flatter = [
+        " ".join(col).strip() if col[0] != col[1] else col[0] for col in columns.values
+    ]
+    pattern = re.compile(r"\[.+\]")
+    flat = [re.sub(pattern, "", s) for s in flatter]  # remove footnotes
+    return flat
+
+
 def get_combined_table(
-    df_list: list[pd.DataFrame], 
-    table_list: Optional[int] = None,
+    df_list: list[pd.DataFrame],
+    table_list: list[int] | None = None,
     verbose: bool = False,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """Get selected tables (by int in table_list) from Wikipedia page.
     Return a single merged table for the selected tables.
     NOTE: Wikipedia has calandar year tables. Consequerntly,
           the table_list argument will need to be updated
           each year."""
 
-    if not table_list:
+    if table_list is None or not table_list:
         if verbose:
             print("No tables selected.")
         return None
     selected: list[pd.DataFrame] = [df_list[i] for i in table_list]
-    combined: Optional[pd.DataFrame] = None
+    combined: pd.DataFrame | None = None
     for table in selected:
         table = table.copy()  # preserve original
         if verbose:
             print("DEBUG:", table.head())
         flat = flatten_col_names(table.columns)
-        table.columns = flat
+        table.columns = pd.Index(flat)
         if combined is None:
             combined = table.copy()
         else:
@@ -179,18 +192,20 @@ def remove_footnotes(t: pd.DataFrame) -> pd.DataFrame:
 def get_dates(tokens: list[str]) -> pd.Series:
     """Extract the first, middle and last date from a list of date tokens."""
 
-    last_day = None
-    day, month, year = None, None, None
+    last_day: pd.Timestamp | None = None
+    day: int | None = None
+    month: str | None = None
+    year: int | None = None
     remember = tokens.copy()
     while tokens:
         token = tokens.pop()
 
         if re.match(r"[0-9]{4}", token):
-            year = token
+            year = int(token)
         elif re.match(r"[A-Za-z]+", token):
             month = token
         elif re.match(r"[0-9]{1,2}", token):
-            day = token
+            day = int(token)
         else:
             print(
                 f"WARNING: {token} not recognised in get_mean_date()"
@@ -204,14 +219,17 @@ def get_dates(tokens: list[str]) -> pd.Series:
             and year is not None
         ):
             last_day = pd.Timestamp(f"{year} {month[:3]} {day}")
+            
 
     if month is None:
         print(f"WARNING: missing month in these tokens? {remember}")
+        month = "Jan"  # randomly default to January, why not?
+        print(f"--> assuming month is {month}")
 
     # sadly we have cases of this ...
-    if not last_day:
-        if day is None:
-            day = 1  # assume first of month
+    if day is None:
+        day = 1
+    if last_day is None:
         last_day = pd.Timestamp(f"{year} {month[:3]} {day}")
 
     # get the middle date
@@ -271,18 +289,6 @@ def clean(table: pd.DataFrame) -> pd.DataFrame:
     return t
 
 
-def flatten_col_names(columns: pd.Index) -> list[str]:
-    """Flatten the hierarchical column index."""
-
-    ensure(columns.nlevels >= 2)
-    flatter = [
-        " ".join(col).strip() if col[0] != col[1] else col[0] for col in columns.values
-    ]
-    pattern = re.compile(r"\[.+\]")
-    flat = [re.sub(pattern, "", s) for s in flatter]  # remove footnotes
-    return flat
-
-
 # --- Validation and corrective manipulations ---
 
 
@@ -291,7 +297,7 @@ def row_sum_check(
     pattern_list: list[str],
     target: int | float = 100.0,
     tolerance: int | float = 2.01,  # Focus on most egregious issues
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """Check that the columns that regex match with a pattern in the
     pattern list all add across to the target plus/minus the specified
     tolerance. Returns None or a DataFrame with the rows of concern."""
@@ -338,7 +344,7 @@ def distribute_undecideds(
 
         # cooked are the column calculations INCLUDING the undecideds
         cooked_cols = raw_cols + [undec_col]
-        cooked_sum = table.loc[undecideds.index, cooked_cols].sum(axis=1)
+        _cooked_sum = table.loc[undecideds.index, cooked_cols].sum(axis=1)
         cooked_closeness_to_target = (raw_sum - target).abs()
 
         # we only redistribute the undecideds for the rows where
@@ -447,7 +453,7 @@ def store(
 
 
 def retrieve(
-    capture_date: Optional[str] = None,  # format YYYYMMDD
+    capture_date: str | None = None,  # format YYYYMMDD
     data_dir: str = DATA_DIR,
 ) -> dict[str, pd.DataFrame]:
     """Retrieve today's captured data from file. Return a
