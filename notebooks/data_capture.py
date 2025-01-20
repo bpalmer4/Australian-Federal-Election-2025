@@ -180,12 +180,13 @@ def remove_footnotes(t: pd.DataFrame) -> pd.DataFrame:
             continue
         col = t.columns[t.columns.get_level_values(0) == brand]
         ensure(len(col) == 1)
-        t.loc[:, col] = (
-            t.loc[:, col]  # returns a single column DataFrame
-            .pipe(lambda x: x[x.columns[0]])  # make as Series
+        t[col] = (
+            t[col]
+            .copy()
             .str.replace(r"\[.*\]", "", regex=True)  # remove footnotes
             .str.strip()  # remove any leading/trailing whitespaces
         )
+        ensure(len(col) == 1)
     return t
 
 
@@ -219,7 +220,6 @@ def get_dates(tokens: list[str]) -> pd.Series:
             and year is not None
         ):
             last_day = pd.Timestamp(f"{year} {month[:3]} {day}")
-            
 
     if month is None:
         print(f"WARNING: missing month in these tokens? {remember}")

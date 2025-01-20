@@ -3,7 +3,6 @@
    maintaining a consistent look and feel for chart
    outputs. """
 
-
 # --- imports
 # system imports
 import re
@@ -17,7 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
+import statsmodels.api as sm  # type: ignore[import-untyped]
 
 # local imports
 from common import MIDDLE_DATE
@@ -278,9 +277,10 @@ def _apply_splat_kwargs(axes: plt.Axes, settings: tuple, **kwargs) -> None:
 def _apply_annotations(axes: plt.Axes, **kwargs) -> None:
     """Set figure size and apply chart annotations."""
 
-    fig = axes.figure
     fig_size = kwargs.get("figsize", DEFAULT_FIG_SIZE)
-    fig.set_size_inches(*fig_size)
+    fig = axes.figure  # a Figure or SubFigure instance
+    if not isinstance(fig, mpl.figure.SubFigure):
+        fig.set_size_inches(*fig_size)
 
     annotations = {
         "rfooter": (0.99, 0.001, "right", "bottom"),
@@ -339,9 +339,9 @@ def _apply_kwargs(axes: plt.Axes, **kwargs) -> None:
 
     # straigten x tick labels
     if check_kwargs("straighten_tl"):
-        for tick in axes.get_xticklabels():
-            tick.set_rotation(0)
-            tick.set_ha("center")
+        for tick in axes.get_xticks():  # might be problematic
+            tick.set_rotation(0)  #
+            tick.set_ha("center")  #
 
 
 # private
@@ -414,17 +414,17 @@ def finalise_plot(axes: plt.Axes, **kwargs) -> None:
     _check_kwargs(**kwargs)
 
     # margins
-    axes.use_sticky_margins = False
+    # axes.use_sticky_margins = False  # This is problematic ...
     axes.margins(0.02)
     axes.autoscale(tight=False)  # This is problematic ...
 
     _apply_kwargs(axes, **kwargs)
 
-    # tight layout
-    fig = axes.figure
-    fig.tight_layout(pad=1.1)
-
-    _save_to_file(fig, **kwargs)
+    # tight layout / save to file
+    fig = axes.figure  # technically can be either a Figure or SubFigure
+    if not isinstance(fig, mpl.figure.SubFigure):  # should never be a SubFigure
+        fig.tight_layout(pad=1.1)
+        _save_to_file(fig, **kwargs)
 
     # show the plot in Jupyter Lab
     if kwargs.get("show", False):
@@ -462,11 +462,11 @@ def annotate_min_max_end(axes: plt.Axes, series: pd.Series) -> None:
 
     min_y, max_y = axes.get_ylim()
     halfway = min_y + ((max_y - min_y) / 2)
-    minimum = series.idxmin(), series.min()
-    maximum = series.idxmax(), series.max()
+    minimum = series.idxmin(), float(series.min())
+    maximum = series.idxmax(), float(series.max())
     end_point = series.index[-1], series.iloc[-1]
     for x, y in (minimum, maximum, end_point):
-        axes.axvline(x, lw=1, color="darkgrey")
+        axes.axvline(x, lw=1, color="darkgrey")  # type: ignore[arg-type]
         pos: Mapping = (
             {
                 "y": max_y,
@@ -479,7 +479,7 @@ def annotate_min_max_end(axes: plt.Axes, series: pd.Series) -> None:
             }
         )
         axes.text(
-            x=x, s=f"{y:.1f}", ha="right", color="black", fontsize=8, rotation=90, **pos
+            x=x, s=f"{y:.1f}", ha="right", color="black", fontsize=8, rotation=90, **pos  # type: ignore[arg-type]
         )
 
 
@@ -555,7 +555,7 @@ def generate_defaults(
     return kwargs_adjusted, defaults_adjusted
 
 
-def plot_loess(
+def plot_loess(  # pylint: disable=too-many-locals
     data: dict[str, pd.DataFrame],  # dictionary of polling data
     plot_ins: dict[str, dict[str, str]],  # dictionary of plot instructions
     **kwargs,  # any additional arguments for finalise_plot()
@@ -576,7 +576,7 @@ def plot_loess(
             colors = colorise(selected.columns)
 
             # calculate and plot LOWESS lines and raw data points
-            chart_lines = selected.apply(
+            chart_lines = selected.apply(  # type: ignore[call-overload]
                 calculate_lowess, axis=0, raw=False
             ).interpolate()
             _, ax = initiate_plot()
