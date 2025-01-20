@@ -20,5 +20,6 @@ notebooks/build
 notebooks/stan-work/**
 automated/**
 notebooks/grave-yard/**
+notebooks/bernoulli**
 redistributions/**
 

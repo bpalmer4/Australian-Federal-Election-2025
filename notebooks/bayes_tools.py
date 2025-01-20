@@ -2,16 +2,16 @@
 
 from itertools import product
 from operator import mul
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Iterable, Sequence, Mapping, Optional
 
 import arviz as az
 from IPython.display import display
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pymc as pm
+import pymc as pm  # type: ignore[import-untyped]
 import pytensor.tensor as pt
-import scipy.stats as ss
+import scipy.stats as ss  # type: ignore[import-untyped]
 
 from common import MIDDLE_DATE, ensure
 import plotting
@@ -26,12 +26,15 @@ def _jitter_for_unique_dates(
     """Jitter dates to avoid conflicts. Why? Because
     dates should not be duplicated in a Gaussian Process."""
 
+    ensure(df.index.is_unique, "Index must be unique.")
+
     # See if we need to do anything
     duplicated = df[df[column].duplicated(keep="first")]
     if not (how_many := len(duplicated)):
         print("No dates are duplicated.")
         return df
     print(f"There are {how_many} duplicated dates to be adjusted.")
+    dups = dict(zip(duplicated.index, duplicated[column]))
 
     # change the dates for each date collision.
     df = df.copy()  # let's not change the original DataFrame
@@ -41,7 +44,7 @@ def _jitter_for_unique_dates(
         pd.Timedelta(mul(*x), unit="D")
         for x in product((-1, 1), range(1, max_movement + 1))
     )
-    for index, date in duplicated[column].items():
+    for index, date in dups.items():
         for adjustment in adjustments:
             check = date + adjustment
             if check not in all_dates:
@@ -66,34 +69,57 @@ def prepare_data_for_analysis(
     """Prepare a dataframe column for Bayesian analysis.
     Returns a python dict with all the necessary values within."""
 
+    ensure(column in df.columns, "Column not found in DataFrame.")
+    box: dict[str, Any] = {}  # container we will return
+    box["column"] = column
+    df = df.copy().loc[df[column].notnull()]  # remove nulls
+
     # make sure data is in date order and uniquely indexed
     df = df.sort_values(MIDDLE_DATE).reset_index(drop=True)
+    # now properly sorted by date, with an unique index
     if kwargs.get("jitter_dates", False):
         df = _jitter_for_unique_dates(df)
+    box["df"] = df
 
     # get our zero centered observations, ignore missing data
     # assume data in percentage points (0..100)
-    y = df[column].dropna()
-    df = df.loc[y.index]  # for consistency, in case there were nulls in y
+    y = df[column]
+    box["y"] = y
+
     if n := kwargs.get(TAIL_CENTRED, 0):
         # centre around last n polls
         # to minimise mean-reversion issues with GP, but may introduce bias
         centre_offset = -y.iloc[-n:].mean()
-        del kwargs[TAIL_CENTRED]
     else:
         centre_offset = -y.mean()
     zero_centered_y = y + centre_offset
-    n_polls = len(zero_centered_y)
+    box["centre_offset"] = centre_offset
+    box["zero_centered_y"] = zero_centered_y
+    box["n_polls"] = len(zero_centered_y)
 
     # get our day-to-date mapping
     right_anchor: Optional[tuple[pd.Period, float]] = kwargs.get("right_anchor", None)
+    box["right_anchor"] = right_anchor
     left_anchor: Optional[tuple[pd.Period, float]] = kwargs.get("left_anchor", None)
-    day_zero = left_anchor[0] if left_anchor is not None else df[MIDDLE_DATE].min()
-    last_day = right_anchor[0] if right_anchor is not None else df[MIDDLE_DATE].max()
-    n_days = int((last_day - day_zero) / pd.Timedelta(days=1)) + 1
-    poll_date = df.loc[y.index, MIDDLE_DATE]
-    poll_day = ((poll_date - day_zero) / pd.Timedelta(days=1)).astype(int)
-    poll_day_c_ = np.c_[poll_day]  # numpy column vector of poll_days for GP
+    box["left_anchor"] = left_anchor
+    day_zero = pd.Period(
+        left_anchor[0] if left_anchor is not None else df[MIDDLE_DATE].min(),
+        freq="D",
+    )
+    box["day_zero"] = day_zero
+    last_day = pd.Period(
+        right_anchor[0] if right_anchor is not None else df[MIDDLE_DATE].max(),
+        freq="D",
+    )
+    box["last_day"] = last_day
+    poll_date = pd.Series(
+        [pd.Period(x, freq="D") for x in df[MIDDLE_DATE]], index=df.index
+    )
+    box["poll_date"] = poll_date
+    poll_day = pd.Series([(x - day_zero).n for x in poll_date], index=df.index)
+    box["poll_day"] = poll_day
+    box["n_days"] = poll_day.max() + 1
+    box["poll_day_c_"] = np.c_[poll_day]  # numpy column vector of poll_days for GP
 
     # sanity checks - anchors must be before or after polling data
     ensure(
@@ -104,46 +130,44 @@ def prepare_data_for_analysis(
     )
 
     # get house effects inputs
-    empty_list: list[str] = list()
-    he_sum_exclusions: list[str] = sorted(kwargs.get("he_sum_exclusions", empty_list))
-    ensure(len(he_sum_exclusions) == len(set(he_sum_exclusions)), "Remove duplicate exclusion.")
-    ensure(all((e in df.Brand.unique() for e in he_sum_exclusions)), "Remove invalid exclusion.")
-    he_sum_inclusions: list[str] = sorted([e for e in df.Brand.unique() if e not in he_sum_exclusions])
+    empty_list: list[str] = []
+    he_sum_exclusions: list[str] = sorted(set(kwargs.get("he_sum_exclusions", empty_list)))
+    missing = [e for e in he_sum_exclusions if e not in df.Brand.unique()]
+    if missing:
+        he_sum_exclusions = sorted(list(set(he_sum_exclusions) - set(missing)))
+    box["he_sum_exclusions"] = he_sum_exclusions
+    he_sum_inclusions: list[str] = sorted(
+        [e for e in df.Brand.unique() if e not in he_sum_exclusions]
+    )
+    box["he_sum_inclusions"] = he_sum_inclusions
 
     # get pollster map - ensure polsters at end of the list are the excluded ones
-    firm_list = he_sum_inclusions + he_sum_exclusions
-    ensure(len(firm_list) == len(set(firm_list)), "Remove duplicate pollsters in the firm_list.")
+    firm_list = he_sum_inclusions + he_sum_exclusions # ensure inclusions first
+    box["firm_list"] = firm_list
+    ensure(
+        len(firm_list) == len(set(firm_list)),
+        "Remove duplicate pollsters in the firm_list.",
+    )
     n_firms = len(firm_list)
+    box["n_firms"] = n_firms
     ensure(n_firms > len(he_sum_exclusions), "Number of exclusions == number of firms.")
     firm_map = {firm: code for code, firm in enumerate(firm_list)}
-    poll_firm = [firm_map[b] for b in df.Brand]
+    box["firm_map"] = firm_map
+    box["back_firm_map"] = {v: k for k, v in firm_map.items()}
+    box["poll_firm_number"] = pd.Series([firm_map[b] for b in df.Brand], index=df.index)
 
     # final sanity checks ...
-    MIN_HE = 1
-    ensure(len(he_sum_inclusions) >= MIN_HE, f"Need at least {MIN_HE} firm for house effects.")
+    minimum_houses = 2
+    ensure(
+        len(he_sum_inclusions) >= minimum_houses,
+        f"Need at least {minimum_houses} firm for house effects.",
+    )
 
     # Information
     if kwargs.get("verbose", False):
-        print(
-            f"Series: {column}\n"
-            f"Number of polls: {n_polls}\n"
-            f"Number of days: {n_days}\n"
-            f"Number of pollsters: {n_firms}\n"
-            f"Centre offset: {centre_offset}\n"
-            f"Pollster map: {firm_map}\n"
-            f"Polling days:\n{poll_day.values}\n"
-            f"House effects sum exclusions: {he_sum_exclusions}\n"
-            f"House effects sum inclusions: {he_sum_inclusions}\n"
-        )
+        print(box)
 
-    # pop everything we need to know into a dictionary and return it
-    inputs = locals().copy()  # okay, this is a kludge hack
-    for k in ("kwargs", "empty_list", "MIN_HE", ): # remove from inputs
-        if k in inputs:
-            del inputs[k]
-    if kwargs.get("verbose", False):
-        print(f"Inputs: {inputs}")
-    return inputs
+    return box
 
 
 # --- Bayesian models and model components
@@ -201,10 +225,14 @@ def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVar
         if inputs["right_anchor"] is None and inputs["left_anchor"] is None:
             if len(inputs["he_sum_exclusions"]) > 0:
                 zero_sum_he = pm.ZeroSumNormal(
-                    "zero_sum_he", sigma=house_effect_sigma, shape=len(inputs["he_sum_inclusions"])
+                    "zero_sum_he",
+                    sigma=house_effect_sigma,
+                    shape=len(inputs["he_sum_inclusions"]),
                 )
                 as_is_he = pm.Normal(
-                    "as_is_he", sigma=house_effect_sigma, shape=len(inputs["he_sum_exclusions"])
+                    "as_is_he",
+                    sigma=house_effect_sigma,
+                    shape=len(inputs["he_sum_exclusions"]),
                 )
                 house_effects = pm.Deterministic(
                     "house_effects", var=pm.math.concatenate([zero_sum_he, as_is_he])
@@ -245,9 +273,10 @@ def core_likelihood(
                 "sigma_likelihood", **sigma_likelihood_hint
             )
         mu = (
-            voting_intention[inputs["poll_day"]] + house_effects[inputs["poll_firm"]]
+            voting_intention[inputs["poll_day"]]
+            + house_effects[inputs["poll_firm_number"]]
             if grw
-            else voting_intention + house_effects[inputs["poll_firm"]]
+            else voting_intention + house_effects[inputs["poll_firm_number"]]
         )
         common_args = {
             "name": "observed_polls",
@@ -446,7 +475,7 @@ def report_glitches(idata: az.InferenceData) -> str:
         glitches.append(text)
 
     try:
-        diverging_count = int(np.sum(idata.sample_stats.diverging))
+        diverging_count = int(np.sum(idata.sample_stats.diverging))  # type: ignore[attr-defined]
     except (ValueError, AttributeError):  # No sample_stats, or no .diverging
         diverging_count = 0
     print(text := f"Divergences: {diverging_count}")
@@ -514,7 +543,7 @@ def plot_univariate(
         var_names = (var_names,)
 
     for variable in var_names:
-        if variable not in idata.posterior:
+        if variable not in idata.posterior:  # type: ignore[attr-defined]
             continue
         axes = az.plot_posterior(idata, var_names=variable, hdi_prob=hdi_prob)
         defaults = {  # default arguments for finalise_plot()
@@ -551,7 +580,7 @@ def plot_voting(inputs, idata, previous: float, palette, **kwargs) -> pd.Series:
     # make the plot
     _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
-    x = df.index
+    # x = df.index  # to do - remove this line
     # plot samples
     if plot_some_samples:
         for y in df.sample(n=plot_some_samples, axis=1):
@@ -614,12 +643,12 @@ def plot_voting(inputs, idata, previous: float, palette, **kwargs) -> pd.Series:
 def _plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
     """Plot house effects using kernel density estimates (KDE)."""
 
-    colors = plotting.MULTI_COLORS
+    colors: Sequence = plotting.MULTI_COLORS
     if len(colors) < len(df.columns):
-        print("Warning: plot_he_kde() does not have enough unique colors")
-        return
+        cm = plt.get_cmap("gist_rainbow")
+        colors = [cm(x) for x in np.linspace(0, 1, len(df.columns))]
 
-    fig, ax = plotting.initiate_plot()
+    _fig, ax = plotting.initiate_plot()
     styles = plotting.STYLES * 4
     for index, col in enumerate(df.columns):
         mini, maxi = (
@@ -649,16 +678,18 @@ def _plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
     plotting.finalise_plot(ax, show=True)
 
 
-def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs: dict) -> None:
+def _plot_he_bar(df: pd.DataFrame, inputs: dict[str, Any], palette: str, kwargs: dict) -> None:
     """Plot house effects as a stacked bar chart."""
 
     _, ax = plotting.initiate_plot()
     cmap = plt.get_cmap(palette)
     vi_middle = df.quantile(0.5, axis=1)
+    bottom = 0
     for i, p in enumerate(PERCENTS):
         quants = p, 100 - p
         label = f"{quants[1] - quants[0]}% HDI"
         lower, upper = [df.quantile(q=q / 100.0, axis=1) for q in quants]
+        bottom = min(bottom, lower.min())
         color = COLOR_FRACS[i]
         ax.barh(
             df.index,
@@ -668,7 +699,7 @@ def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs: dict
             label=label,
             zorder=i + 1,
         )
-    for index, value in vi_middle.items():
+    for index, value in enumerate(vi_middle):
         ax.text(
             s=f"{value:.1f}",
             x=value,
@@ -679,35 +710,39 @@ def _plot_he_bar(df: pd.DataFrame, palette: str, middle: pd.Series, kwargs: dict
             color="white",
             zorder=i + 2,
         )
+    message = "Sum to zero HE constrained"
+    for name in inputs['he_sum_inclusions']:
+        ax.scatter(bottom + 0.1, name, c="black", marker="o", s=10, zorder=i + 3, label=message)
+        message = "_"
     ax.tick_params(axis="y", labelsize="small")
     ax.axvline(x=0, c="#333333", lw=0.75)
     defaults = {  # default arguments for finalise_plot()
         "xlabel": "Relative effect (percentage points)",
         "ylabel": None,
         "show": False,
-        "legend": plotting.LEGEND_SET | {"ncols": 1, "fontsize": "xx-small"},
+        "legend": plotting.LEGEND_SET | {"ncols": 1, "fontsize": "xx-small", "loc": "lower right"},
+        #"lheader": f"Included in sum-to-zero: {', '.join(inputs['he_sum_inclusions'])}",   
         **plotting.footers,
     }
     kwargs_copy, defaults = plotting.generate_defaults(kwargs, defaults)
     plotting.finalise_plot(ax, **defaults, **kwargs_copy)
-
-    return vi_middle
 
 
 def plot_residuals(vi_middle, he_middle, title_stem, inputs, **kwargs) -> None:
     """If polling company methodologies have not changed, then
     we would expect the residuals to be normally distributed."""
 
-    minimum_required = 3
+    minimum_required = 5
     vi_middle = vi_middle.to_period("D")
-    poll_firm = inputs["poll_firm"].map(inputs["firm_map"])
     dates = inputs["poll_date"]
-    poll_days = inputs["poll_day"]
-    for firm in sorted(he_middle.index):
-        selected_polls = poll_firm[poll_firm == firm].index
+    poll_numbers = inputs["poll_firm_number"]
+    # poll_days = inputs["poll_day"]  # to do remove this line
+    for firm_name in sorted(he_middle.index):
+        firm_number = inputs["firm_map"][firm_name]
+        selected_polls = poll_numbers[poll_numbers == firm_number].index
         if len(selected_polls) < minimum_required:
             continue
-        adjusted_polls = inputs["y"].loc[selected_polls] - he_middle[firm]
+        adjusted_polls = inputs["y"].loc[selected_polls] - he_middle[firm_name]
         key_dates = dates.loc[selected_polls]
         adjusted_polls.index = key_dates
         on_day = vi_middle[vi_middle.index.isin(key_dates)]
@@ -718,7 +753,7 @@ def plot_residuals(vi_middle, he_middle, title_stem, inputs, **kwargs) -> None:
         ax.tick_params(axis="y", labelsize="x-small")
         plotting.finalise_plot(
             ax,
-            title=f"Residuals for {title_stem}:\n{firm}",
+            title=f"Residuals for {title_stem}:\n{firm_name}",
             xlabel=None,
             ylabel="Percentage points",
             **kwargs,
@@ -730,7 +765,7 @@ def plot_house_effects(
     idata: az.InferenceData,
     palette: str,
     **kwargs,
-) -> None:
+) -> pd.Series:
     """Plot the House effects for both GRW and GP models.
     Choice of charts by setting bool kwargs plot_he_bar and
     plot_he_kde for either/both (a) stacked bar chart, or
@@ -746,7 +781,7 @@ def plot_house_effects(
     he_kde = kwargs.pop("plot_he_kde", True)  # use pop to remove from kwargs
 
     if he_bar:
-        _plot_he_bar(df, palette, he_middle, kwargs)
+        _plot_he_bar(df, inputs, palette, kwargs)
 
     if he_kde:
         _plot_he_kde(df.T, kwargs)
@@ -808,12 +843,16 @@ def plot_std_set(
         idata,
         palette,
         title=f"House Effects: {title_stem}",
-        **(core_plot_args | kwargs),
+        **(core_plot_args | kwargs),  # type: ignore[operator]
     )
 
     if residuals:
         plot_residuals(
-            vi_middle, he_middle, title_stem, inputs, **(core_plot_args | kwargs)
+            vi_middle,
+            he_middle,
+            title_stem,
+            inputs,
+            **(core_plot_args | kwargs),  # type: ignore[operator]
         )
 
     return vi_middle

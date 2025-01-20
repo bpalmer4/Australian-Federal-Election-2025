@@ -174,19 +174,10 @@ def remove_footnotes(t: pd.DataFrame) -> pd.DataFrame:
     """Remove Wikipedia footnote references from the Brand column"""
 
     branding_labels = ["Brand", "Firm"]
+    for col in t.columns:
+        if col in branding_labels:
+            t[col] = t[col].str.replace(r"\[.*\]", "", regex=True).str.strip()
 
-    for brand in branding_labels:
-        if brand not in t.columns.get_level_values(0):
-            continue
-        col = t.columns[t.columns.get_level_values(0) == brand]
-        ensure(len(col) == 1)
-        t[col] = (
-            t[col]
-            .copy()
-            .str.replace(r"\[.*\]", "", regex=True)  # remove footnotes
-            .str.strip()  # remove any leading/trailing whitespaces
-        )
-        ensure(len(col) == 1)
     return t
 
 
