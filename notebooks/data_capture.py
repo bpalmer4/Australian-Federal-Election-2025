@@ -60,7 +60,7 @@ def flatten_col_names(columns: pd.Index) -> list[str]:
 
 def get_combined_table(
     df_list: list[pd.DataFrame],
-    table_list: list[int] | None = None,
+    table_list: Sequence[int] | None = None,
     verbose: bool = False,
 ) -> pd.DataFrame | None:
     """Get selected tables (by int in table_list) from Wikipedia page.
