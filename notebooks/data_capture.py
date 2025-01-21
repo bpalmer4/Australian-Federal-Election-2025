@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import requests
 from IPython.display import display
-from common import ALL_DATES, MIDDLE_DATE, ensure
+from common import ALL_DATES, MIDDLE_DATE, ATTITUDINAL, ensure
 
 
 # --- Constants
@@ -360,8 +360,8 @@ def distribute_undecideds(
 def normalise(
     data: dict[str, pd.DataFrame],
     checkables: dict[str, list[str]],
-    force_total_to: int | float = 100.0,  # selected columns normally row-sum to 100%
-    tolerance: int | float = 0.01,  # report most, but don't report anything too minor
+    force_total_to: float = 100.0,  # selected columns normally row-sum to 100%
+    tolerance: float = 0.01,  # report most, but don't report anything too minor
     verbose: bool = True,
 ) -> dict[str, pd.DataFrame]:
     """For the key, list of regex-patterns pairs in the checkables
@@ -370,32 +370,51 @@ def normalise(
     Because this is an aggressive treatment, you should keep
     verbose reporting and check through the output."""
 
-    data = data.copy()  # preserve the original
-    for label, check_list in checkables.items():
-        df = data[label]
+    fixed = {}
+    for name, check_list in checkables.items():
+        df = data[name].copy()
+        if verbose:
+            print(f"Checking normalisation for table: {name}")
+
         for check in check_list:
             columns = [x for x in df.columns if re.match(check, x)]
             if verbose:
-                print(f"For {label}; Pattern: {check} -> Selected columns: {columns}")
-            row_sum = df[columns].sum(axis=1)
-            problematic = (row_sum < (force_total_to - tolerance)) | (
-                row_sum > (force_total_to + tolerance)
+                print(f"In {name} checking row-additions for {columns}")
+            row_sum = df[columns].astype(float).sum(axis=1, skipna=True)
+
+            # we will ignore rows that are all NAN
+            na_ignore = (df[columns].isna().astype(int).sum(axis=1)) == len(columns)
+            # we will ignore rows in ATTitudINAL data that are not complete.abs
+            complete = (df[columns].notna().astype(int).sum(axis=1) == len(columns)) | (
+                name != ATTITUDINAL
+            )
+
+            problematic = (
+                ~na_ignore
+                & complete
+                & (
+                    (row_sum < (force_total_to - tolerance))
+                    | (row_sum > (force_total_to + tolerance))
+                )
             )
             count = problematic.astype(int).sum()
-            print(f"{count / len(row_sum) * 100:.2f}% of rows need normalisation.")
+            print(
+                f"{count / len(row_sum) * 100:.2f}% of rows need normalisation - for {name}, {check}."
+            )
             if verbose and count:
                 tmp_column_name = f"Normalisation totals {check}"
                 df[tmp_column_name] = row_sum
                 display(df.loc[problematic])
                 df = df.drop(tmp_column_name, axis=1)
             df[columns] = df[columns].div(row_sum, axis=0) * force_total_to
-        data[label] = df
-    return data
+
+        fixed[name] = df
+    return fixed
 
 
 def methodology(
     data: dict[str, pd.DataFrame],
-    effective_date: pd.Period,
+    effective_date: str | pd.Period,
     change_from: str,
     change_to: str,
 ) -> dict[str, pd.DataFrame]:
