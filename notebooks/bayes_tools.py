@@ -61,6 +61,50 @@ def _jitter_for_unique_dates(
 TAIL_CENTRED = "tail_centred"
 
 
+def _check_he_constraints(box: dict[str, Any]) -> None:
+    """Check that the house effect constraints are as expected.
+    The list of firms should be in the correct order, with the
+    pollsters excluded from the sum-to-zero constraint should
+    be at the end of the list."""
+
+    # -- get the data we need to check
+    he_sum_exclusions = box["he_sum_exclusions"]
+    he_sum_inclusions = box["he_sum_inclusions"]
+    firms = box["firm_list"]
+
+    # -- check that our house effects are all lists of strings
+    for check in (he_sum_exclusions, he_sum_inclusions, firms):
+        ensure(
+            isinstance(check, list), "House effect constraints must be lists of strings."
+        )
+        for element in check:
+            ensure(
+                isinstance(element, str),
+                "House effect constraints must be lists of strings.",
+            )
+
+    # -- check we have at least minimum_houses of constraints
+    minimum_houses = 2
+    ensure(
+        len(he_sum_inclusions) >= minimum_houses,
+        f"Need at least {minimum_houses} firm for house effects.",
+    )
+
+    # -- check the includesions are first
+    he_inclusions2 = firms[: len(he_sum_inclusions)]
+    ensure(
+        set(he_sum_inclusions) == set(he_inclusions2),
+        "The house-effect-constrained pollsters should be first in the 'firm-list'.",
+    )
+
+    # -- check the exclusions are last
+    he_sum_exclusions2 = firms[-len(he_sum_exclusions):]
+    ensure(
+        set(he_sum_exclusions) == set(he_sum_exclusions2),
+        "The unconstrained pollsters should be last in the 'firm-list'.",
+    )
+
+
 def prepare_data_for_analysis(
     df: pd.DataFrame,
     column: str,
@@ -131,14 +175,15 @@ def prepare_data_for_analysis(
 
     # get house effects inputs
     empty_list: list[str] = []
-    he_sum_exclusions: list[str] = sorted(set(kwargs.get("he_sum_exclusions", empty_list)))
-    missing = [e for e in he_sum_exclusions if e not in df.Brand.unique()]
-    if missing:
-        he_sum_exclusions = sorted(list(set(he_sum_exclusions) - set(missing)))
+    he_sum_exclusions: list[str] = kwargs.get("he_sum_exclusions", empty_list)
+    missing_firm: list[str] = [e for e in he_sum_exclusions if e not in df.Brand.unique()]
+    if missing_firm:
+        # firm is not in the data, but it is one we should exclude?
+        he_sum_exclusions = sorted(list(set(he_sum_exclusions) - set(missing_firm)))
     box["he_sum_exclusions"] = he_sum_exclusions
-    he_sum_inclusions: list[str] = sorted(
-        [e for e in df.Brand.unique() if e not in he_sum_exclusions]
-    )
+    he_sum_inclusions: list[str] = [
+        e for e in df.Brand.unique() if e not in he_sum_exclusions
+    ]
     box["he_sum_inclusions"] = he_sum_inclusions
 
     # get pollster map - ensure polsters at end of the list are the excluded ones
@@ -157,11 +202,7 @@ def prepare_data_for_analysis(
     box["poll_firm_number"] = pd.Series([firm_map[b] for b in df.Brand], index=df.index)
 
     # final sanity checks ...
-    minimum_houses = 2
-    ensure(
-        len(he_sum_inclusions) >= minimum_houses,
-        f"Need at least {minimum_houses} firm for house effects.",
-    )
+    _check_he_constraints(box)
 
     # Information
     if kwargs.get("verbose", False):

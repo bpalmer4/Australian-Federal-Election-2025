@@ -15,9 +15,10 @@ dependencies:
   - jupyterlab-spellchecker 
   - jupyterlab_code_formatter
   # data science
+  - cmdstanpy
   - pandas
   - numpy
-  - matplotlib >= 3.9.2
+  - matplotlib
   - seaborn
   - statsmodels 
   - scipy 
