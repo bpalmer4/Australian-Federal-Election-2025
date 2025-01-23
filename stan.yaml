@@ -24,6 +24,7 @@ dependencies:
   - scipy 
   - scikit-learn 
   - pycountry
+  - lxml
   # Microsoft Excel 
   - openpyxl
   - xlrd
