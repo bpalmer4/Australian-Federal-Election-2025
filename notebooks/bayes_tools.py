@@ -265,24 +265,27 @@ def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVar
     with model:
         if inputs["right_anchor"] is None and inputs["left_anchor"] is None:
             if len(inputs["he_sum_exclusions"]) > 0:
+                # sum to zero constraint for some (but not all) houses
                 zero_sum_he = pm.ZeroSumNormal(
                     "zero_sum_he",
                     sigma=house_effect_sigma,
                     shape=len(inputs["he_sum_inclusions"]),
                 )
-                as_is_he = pm.Normal(
-                    "as_is_he",
+                unconstrained_he = pm.Normal(
+                    "unconstrained_he",
                     sigma=house_effect_sigma,
                     shape=len(inputs["he_sum_exclusions"]),
                 )
                 house_effects = pm.Deterministic(
-                    "house_effects", var=pm.math.concatenate([zero_sum_he, as_is_he])
+                    "house_effects", var=pm.math.concatenate([zero_sum_he, unconstrained_he])
                 )
             else:
+                # sum to zero constraint for all houses
                 house_effects = pm.ZeroSumNormal(
                     "house_effects", sigma=house_effect_sigma, shape=inputs["n_firms"]
                 )
         else:
+            # all house effects are unconstrained, used in anchored models
             house_effects = pm.Normal(
                 "house_effects", sigma=house_effect_sigma, shape=inputs["n_firms"]
             )
