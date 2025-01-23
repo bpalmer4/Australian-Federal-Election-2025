@@ -213,15 +213,14 @@ def prepare_data_for_analysis(
 
 # --- Bayesian models and model components
 # - Gaussian Random Walk
-def _guess_start(inputs: dict[str, Any]) -> np.float64:
+def _guess_start(inputs: dict[str, Any], n=10) -> np.float64:
     """Guess a starting point for the random walk,
-    based on early poll results."""
+    based on the first n poll results."""
 
-    guess_first_n_polls = 5  # guess based on first n polls
-    educated_guess = inputs["zero_centered_y"][
-        : min(guess_first_n_polls, len(inputs["zero_centered_y"]))
-    ].mean()
-    return educated_guess
+    if n > (m := len(inputs["zero_centered_y"])):
+        n = m
+        print(f"Caution: Input data series is only {n} observations long.")
+    return inputs["zero_centered_y"][:n].mean()
 
 
 def temporal_model(
@@ -259,7 +258,7 @@ def temporal_model(
 
 def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVariable:
     """The house effects model. This model component is used with
-    both the GRW and Gaussian Process (GP) models."""
+    both the GRW and the Gaussian Process (GP) models."""
 
     house_effect_sigma = inputs.get("house_effect_sigma", 5.0)
     with model:
