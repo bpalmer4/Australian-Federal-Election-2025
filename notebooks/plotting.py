@@ -339,9 +339,10 @@ def _apply_kwargs(axes: plt.Axes, **kwargs) -> None:
 
     # straigten x tick labels
     if check_kwargs("straighten_tl"):
-        for tick in axes.get_xticks():  # might be problematic
-            tick.set_rotation(0)  #
-            tick.set_ha("center")  #
+        labels = axes.get_xticklabels()
+        for label in labels:
+            label.set_rotation(0)
+            label.set_ha("center")  # type: ignore[attr-defined]
 
 
 # private
