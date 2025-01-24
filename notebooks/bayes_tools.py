@@ -1,7 +1,5 @@
 """Tools for doing Bayesian aggregation of polls"""
 
-from itertools import product
-from operator import mul
 from typing import Any, Iterable, Sequence, Mapping, Optional
 
 import arviz as az
@@ -18,46 +16,6 @@ import plotting
 
 
 # --- Data preparation
-def _jitter_for_unique_dates(
-    df: pd.DataFrame,  # data frame
-    column: str = MIDDLE_DATE,  # column name of pd.Period to jitter
-    max_movement: int = 3,  # days
-) -> pd.DataFrame:
-    """Jitter dates to avoid conflicts. Why? Because
-    dates should not be duplicated in a Gaussian Process."""
-
-    ensure(df.index.is_unique, "Index must be unique.")
-
-    # See if we need to do anything
-    duplicated = df[df[column].duplicated(keep="first")]
-    if not (how_many := len(duplicated)):
-        print("No dates are duplicated.")
-        return df
-    print(f"There are {how_many} duplicated dates to be adjusted.")
-    dups = dict(zip(duplicated.index, duplicated[column]))
-
-    # change the dates for each date collision.
-    df = df.copy()  # let's not change the original DataFrame
-    all_dates = set(df[column])
-    adjustments = tuple(
-        # check for free earlier dates first ...
-        pd.Timedelta(mul(*x), unit="D")
-        for x in product((-1, 1), range(1, max_movement + 1))
-    )
-    for index, date in dups.items():
-        for adjustment in adjustments:
-            check = date + adjustment
-            if check not in all_dates:
-                df.loc[index, column] = check
-                all_dates.add(check)
-                break
-
-    # collisions may remain if too many to adjust within max_movement
-    ensure(not df[column].duplicated().any(), "Could not successfully jitter dates.")
-
-    return df
-
-
 TAIL_CENTRED = "tail_centred"
 
 
@@ -75,7 +33,8 @@ def _check_he_constraints(box: dict[str, Any]) -> None:
     # -- check that our house effects are all lists of strings
     for check in (he_sum_exclusions, he_sum_inclusions, firms):
         ensure(
-            isinstance(check, list), "House effect constraints must be lists of strings."
+            isinstance(check, list),
+            "House effect constraints must be lists of strings.",
         )
         for element in check:
             ensure(
@@ -98,7 +57,7 @@ def _check_he_constraints(box: dict[str, Any]) -> None:
     )
 
     # -- check the exclusions are last
-    he_sum_exclusions2 = firms[-len(he_sum_exclusions):]
+    he_sum_exclusions2 = firms[-len(he_sum_exclusions) :]
     ensure(
         set(he_sum_exclusions) == set(he_sum_exclusions2),
         "The unconstrained pollsters should be last in the 'firm-list'.",
@@ -118,11 +77,8 @@ def prepare_data_for_analysis(
     box["column"] = column
     df = df.copy().loc[df[column].notnull()]  # remove nulls
 
-    # make sure data is in date order and uniquely indexed
+    # make sure data is properly sorted by date, with an unique index
     df = df.sort_values(MIDDLE_DATE).reset_index(drop=True)
-    # now properly sorted by date, with an unique index
-    if kwargs.get("jitter_dates", False):
-        df = _jitter_for_unique_dates(df)
     box["df"] = df
 
     # get our zero centered observations, ignore missing data
@@ -176,7 +132,9 @@ def prepare_data_for_analysis(
     # get house effects inputs
     empty_list: list[str] = []
     he_sum_exclusions: list[str] = kwargs.get("he_sum_exclusions", empty_list)
-    missing_firm: list[str] = [e for e in he_sum_exclusions if e not in df.Brand.unique()]
+    missing_firm: list[str] = [
+        e for e in he_sum_exclusions if e not in df.Brand.unique()
+    ]
     if missing_firm:
         # firm is not in the data, but it is one we should exclude?
         he_sum_exclusions = sorted(list(set(he_sum_exclusions) - set(missing_firm)))
@@ -187,7 +145,7 @@ def prepare_data_for_analysis(
     box["he_sum_inclusions"] = he_sum_inclusions
 
     # get pollster map - ensure polsters at end of the list are the excluded ones
-    firm_list = he_sum_inclusions + he_sum_exclusions # ensure inclusions first
+    firm_list = he_sum_inclusions + he_sum_exclusions  # ensure inclusions first
     box["firm_list"] = firm_list
     ensure(
         len(firm_list) == len(set(firm_list)),
@@ -276,7 +234,8 @@ def house_effects_model(inputs: dict[str, Any], model: pm.Model) -> pt.TensorVar
                     shape=len(inputs["he_sum_exclusions"]),
                 )
                 house_effects = pm.Deterministic(
-                    "house_effects", var=pm.math.concatenate([zero_sum_he, unconstrained_he])
+                    "house_effects",
+                    var=pm.math.concatenate([zero_sum_he, unconstrained_he]),
                 )
             else:
                 # sum to zero constraint for all houses
@@ -721,7 +680,9 @@ def _plot_he_kde(df: pd.DataFrame, kwargs: dict) -> None:
     plotting.finalise_plot(ax, show=True)
 
 
-def _plot_he_bar(df: pd.DataFrame, inputs: dict[str, Any], palette: str, kwargs: dict) -> None:
+def _plot_he_bar(
+    df: pd.DataFrame, inputs: dict[str, Any], palette: str, kwargs: dict
+) -> None:
     """Plot house effects as a stacked bar chart."""
 
     _, ax = plotting.initiate_plot()
@@ -754,8 +715,10 @@ def _plot_he_bar(df: pd.DataFrame, inputs: dict[str, Any], palette: str, kwargs:
             zorder=i + 2,
         )
     message = "Sum to zero HE constrained"
-    for name in inputs['he_sum_inclusions']:
-        ax.scatter(bottom + 0.1, name, c="black", marker="o", s=10, zorder=i + 3, label=message)
+    for name in inputs["he_sum_inclusions"]:
+        ax.scatter(
+            bottom + 0.1, name, c="black", marker="o", s=10, zorder=i + 3, label=message
+        )
         message = "_"
     ax.tick_params(axis="y", labelsize="small")
     ax.axvline(x=0, c="#333333", lw=0.75)
@@ -763,8 +726,9 @@ def _plot_he_bar(df: pd.DataFrame, inputs: dict[str, Any], palette: str, kwargs:
         "xlabel": "Relative effect (percentage points)",
         "ylabel": None,
         "show": False,
-        "legend": plotting.LEGEND_SET | {"ncols": 1, "fontsize": "xx-small", "loc": "lower right"},
-        #"lheader": f"Included in sum-to-zero: {', '.join(inputs['he_sum_inclusions'])}",   
+        "legend": plotting.LEGEND_SET
+        | {"ncols": 1, "fontsize": "xx-small", "loc": "lower right"},
+        # "lheader": f"Included in sum-to-zero: {', '.join(inputs['he_sum_inclusions'])}",
         **plotting.footers,
     }
     kwargs_copy, defaults = plotting.generate_defaults(kwargs, defaults)
