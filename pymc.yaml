@@ -30,7 +30,11 @@ dependencies:
   - arrow 
   - polars 
   # web stuff
+  - selenium
+  - webdriver-manager
   - lxml 
+  - bs4
+  - requests_cache
   # PyMC - Bayesian statistics
   - pymc >= 5.12.0 
   - pytensor >= 2.19

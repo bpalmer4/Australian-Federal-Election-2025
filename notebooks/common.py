@@ -8,6 +8,14 @@ from typing import Any
 
 VOTING_INTENTION = "voting-intention"
 ATTITUDINAL = "attitudinal"
+NSW = "NSW"
+VIC = "VIC"
+QLD = "QLD"
+SA = "SA"
+WA = "WA"
+TAS = "TAS"
+NT = "NT"
+ACT = "ACT"
 
 MIDDLE_DATE = "Mean Date"
 FIRST_DATE = "First Date"
