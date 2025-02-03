@@ -714,7 +714,7 @@ def _plot_he_bar(
             color="white",
             zorder=i + 2,
         )
-    message = "Sum to zero HE constrained"
+    message = "HE constrained to sum to zero"
     for name in inputs["he_sum_inclusions"]:
         ax.scatter(
             bottom + 0.1, name, c="black", marker="o", s=10, zorder=i + 3, label=message
@@ -785,7 +785,7 @@ def plot_house_effects(
     df = df.reindex(he_middle.index)
 
     he_bar = kwargs.pop("plot_he_bar", True)  # default
-    he_kde = kwargs.pop("plot_he_kde", True)  # use pop to remove from kwargs
+    he_kde = kwargs.pop("plot_he_kde", False)  # use pop to remove from kwargs
 
     if he_bar:
         _plot_he_bar(df, inputs, palette, kwargs)
