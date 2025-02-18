@@ -230,6 +230,7 @@ def get_dates(tokens: list[str]) -> pd.Series:
             "CHECK there may be a problem with these dates in get_dates(): "
             f"{first_day} {last_day} with these tokens {remember}"
         )
+        first_day = pd.Timestamp(f"{year-1} {month[:3]} {day}")
     middle_day = first_day + ((last_day - first_day) / 2)
     return pd.Series(
         data=(first_day.date(), middle_day.date(), last_day.date()),
