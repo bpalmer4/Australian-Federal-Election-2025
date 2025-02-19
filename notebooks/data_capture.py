@@ -217,6 +217,10 @@ def get_dates(tokens: list[str]) -> pd.Series:
         month = "Jan"  # randomly default to January, why not?
         print(f"--> assuming month is {month}")
 
+    if year is None:
+        print(f"WARNING: missing year in these tokens? {remember}")
+        year = 2000  # randomly default to 200 - will be obvious if wrong
+
     # sadly we have cases of this ...
     if day is None:
         day = 1
@@ -225,12 +229,14 @@ def get_dates(tokens: list[str]) -> pd.Series:
 
     # get the middle date
     first_day = pd.Timestamp(f"{year} {month[:3]} {day}")
+    year = first_day.year
     if first_day > last_day:
         print(
             "CHECK there may be a problem with these dates in get_dates(): "
             f"{first_day} {last_day} with these tokens {remember}"
         )
-        first_day = pd.Timestamp(f"{year-1} {month[:3]} {day}")
+        first_day = pd.Timestamp(f"{int(year)-1} {month[:3]} {day}")
+        print(f"--> assuming first day is {first_day}")
     middle_day = first_day + ((last_day - first_day) / 2)
     return pd.Series(
         data=(first_day.date(), middle_day.date(), last_day.date()),
