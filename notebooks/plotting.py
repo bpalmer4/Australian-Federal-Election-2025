@@ -552,6 +552,7 @@ def generate_defaults(
     kwargs_adjusted = kwargs.copy()
     defaults_adjusted = defaults.copy()
     for key in defaults_adjusted:
+        # remove from kwargs if it is in defaults
         defaults_adjusted[key] = kwargs_adjusted.pop(key, defaults_adjusted[key])
     return kwargs_adjusted, defaults_adjusted
 
