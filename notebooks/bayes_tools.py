@@ -841,7 +841,7 @@ def plot_std_set(
         previous,
         palette,
         title=f"Bayesian Aggregation: {title_stem}",
-        **core_plot_args,
+        **(core_plot_args | kwargs),  # type: ignore[operator]
     )
 
     # plot house effects
