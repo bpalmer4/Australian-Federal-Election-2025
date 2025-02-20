@@ -595,6 +595,15 @@ def plot_loess(  # pylint: disable=too-many-locals
                 else:
                     # anonymous data points
                     ax.scatter(selected.index, selected[line], c=color, s=5)
+                    ax.text(
+                        x=chart_lines[line].index[-1],
+                        y=chart_lines[line].iloc[-1],
+                        s=f" {chart_lines[line].iloc[-1]:0.1f}",
+                        color="#444444",
+                        fontsize="x-small",
+                        ha="left",
+                        va="center",
+                    )
 
             # manage default and additional arguments for finalise_plot()
             defaults = {  # default arguments for finalise_plot()
