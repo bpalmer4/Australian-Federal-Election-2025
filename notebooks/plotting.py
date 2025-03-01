@@ -117,7 +117,7 @@ def clear_chart_dir() -> None:
 
 def amalgamate_other(
     df: pd.DataFrame,
-    columns_to_sum: Iterable[str] = ("ONP", "UAP", "OTH", "DEM", "DLP"),
+    columns_to_sum: Iterable[str] = ("ONP", "UAP", "OTH", "DEM", "DLP", "TOP"),
     new_column="Primary vote Other",
 ) -> pd.DataFrame:
     """Sum rows for regex-pattern selected columns and place in new_column."""

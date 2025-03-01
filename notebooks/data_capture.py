@@ -73,22 +73,22 @@ def get_combined_table(
         if verbose:
             print("No tables selected.")
         return None
-    selected: list[pd.DataFrame] = [df_list[i] for i in table_list]
     combined: pd.DataFrame | None = None
-    for table in selected:
-        table = table.copy()  # preserve original
+    for table_num in table_list:
+        table = df_list[table_num].copy()
         if verbose:
             print("DEBUG:", table.head())
         flat = flatten_col_names(table.columns)
         table.columns = pd.Index(flat)
         if combined is None:
-            combined = table.copy()
+            combined = table
         else:
-            # check table headers align ...
-            combined_set = set(combined.columns)
             table_set = set(table.columns)
-            # print(table_set, combined_set)
-            ensure(combined_set.issuperset(table_set), "Column name mismatch")
+            combined_set = set(combined.columns)
+            problematic = table_set.difference(combined_set)
+            if problematic:
+                print(f"WARNING: with table {table_num}, "
+                + f"{problematic} not in combined table.") 
             combined = pd.concat((combined, table))
 
     return combined
