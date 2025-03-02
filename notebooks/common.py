@@ -27,6 +27,10 @@ COLOR_COALITION = "royalblue"
 COLOR_LABOR = "crimson"
 
 
+# --- FILE PATHS
+NAT_MON_DIRICHLET_MEDIANS = "../data/national-monthly-dirichlet-medians.csv"
+
+
 # --- FUNCTIONS
 
 
