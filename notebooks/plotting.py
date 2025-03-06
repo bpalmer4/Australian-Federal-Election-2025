@@ -142,7 +142,9 @@ def get_party_palette(party_text: str) -> str:
         return "Greens"
     if "oth" in party_text.lower():
         return "YlOrBr"
-    return "viridis_r"
+    if "onp" in party_text.lower():
+        return "YlGnBu"
+    return "Purples"
 
 
 def get_party_color(s: str) -> str:

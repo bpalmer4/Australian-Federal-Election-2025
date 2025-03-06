@@ -29,6 +29,7 @@ COLOR_LABOR = "crimson"
 
 # --- FILE PATHS
 NAT_MON_DIRICHLET_MEDIANS = "../data/national-monthly-dirichlet-medians.csv"
+NAT_MON_CLASSIC_MEDIANS = "../data/national-monthly-classic-medians.csv"
 
 
 # --- FUNCTIONS
