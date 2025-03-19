@@ -452,7 +452,7 @@ def annotate_endpoint(axes: plt.Axes, series: pd.Series, end=None, rot=90):
     axes.text(
         x,
         series.iloc[-1],
-        f"{round(series.iloc[-1], 1)}",
+        f"{series.iloc[-1].round(1)}",
         ha="left",
         va="center",
         rotation=rot,
@@ -584,6 +584,7 @@ def plot_loess(  # pylint: disable=too-many-locals
                 calculate_lowess, axis=0, raw=False
             ).interpolate()
             _, ax = initiate_plot()
+            endpoints = []
             for line, color in zip(selected.columns, colors):
                 chart_lines[line].plot(ax=ax, c=color, label=line)
                 if len(selected.columns) == 1:
@@ -597,15 +598,19 @@ def plot_loess(  # pylint: disable=too-many-locals
                 else:
                     # anonymous data points
                     ax.scatter(selected.index, selected[line], c=color, s=5)
-                    ax.text(
-                        x=chart_lines[line].index[-1],
-                        y=chart_lines[line].iloc[-1],
-                        s=f" {chart_lines[line].iloc[-1]:0.1f}",
-                        color="#444444",
-                        fontsize="x-small",
-                        ha="left",
-                        va="center",
-                    )
+                    endpoints.append(chart_lines[line].iloc[-1])
+
+
+            for i, p in enumerate(sorted(endpoints)):
+                ax.text(
+                    x=selected.index[-1],
+                    y=p,
+                    s=f" {p:0.1f}",
+                    color="#444444",
+                    fontsize="x-small",
+                    ha="left",
+                    va="center" if len(endpoints) > 2 else "top" if i == 0 else "bottom"
+                )
 
             # manage default and additional arguments for finalise_plot()
             defaults = {  # default arguments for finalise_plot()
