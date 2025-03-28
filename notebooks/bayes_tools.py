@@ -490,13 +490,15 @@ def report_glitches(idata: az.InferenceData) -> str:
 def draw_samples(model: pm.Model, **kwargs) -> tuple[az.InferenceData, str]:
     """Draw samples from the posterior distribution (ie. run the model)."""
 
+    plot_trace = kwargs.pop("plot_trace", True)
     with model:
         idata = pm.sample(
             progressbar=True,
             return_inferencedata=True,
             **kwargs,
         )
-        az.plot_trace(idata)
+        if plot_trace:
+            az.plot_trace(idata)
     glitches = report_glitches(idata)
     return (idata, glitches)
 

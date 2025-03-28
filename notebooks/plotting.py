@@ -603,7 +603,7 @@ def plot_loess(  # pylint: disable=too-many-locals
 
             for i, p in enumerate(sorted(endpoints)):
                 ax.text(
-                    x=selected.index[-1],
+                    x=selected.index[-1],  # type: ignore[arg-type]
                     y=p,
                     s=f" {p:0.1f}",
                     color="#444444",
