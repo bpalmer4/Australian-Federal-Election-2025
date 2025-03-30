@@ -1,0 +1,494 @@
+,seat,party,price,timestamp
+0,Adelaide (SA),Labor,1.01,2025-03-30 23:21:13.467650
+1,Adelaide (SA),Coalition,12.0,2025-03-30 23:21:13.467650
+2,Adelaide (SA),Greens,19.0,2025-03-30 23:21:13.467650
+3,Adelaide (SA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+4,Aston (VIC),Coalition,1.17,2025-03-30 23:21:13.467650
+5,Aston (VIC),Labor,4.25,2025-03-30 23:21:13.467650
+6,Aston (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+7,Ballarat (VIC),Labor,1.05,2025-03-30 23:21:13.467650
+8,Ballarat (VIC),Coalition,8.0,2025-03-30 23:21:13.467650
+9,Ballarat (VIC),Any Other Candidate,16.0,2025-03-30 23:21:13.467650
+10,Banks (NSW),Coalition,1.005,2025-03-30 23:21:13.467650
+11,Banks (NSW),Labor,16.0,2025-03-30 23:21:13.467650
+12,Banks (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+13,Barker (SA),Coalition,1.005,2025-03-30 23:21:13.467650
+14,Barker (SA),Any Other Candidate,14.0,2025-03-30 23:21:13.467650
+15,Barker (SA),Labor,21.0,2025-03-30 23:21:13.467650
+16,Barton (NSW),Labor,1.005,2025-03-30 23:21:13.467650
+17,Barton (NSW),Coalition,16.0,2025-03-30 23:21:13.467650
+18,Barton (NSW),Any Other Candidate,23.0,2025-03-30 23:21:13.467650
+19,Bass (TAS),Coalition,1.2,2025-03-30 23:21:13.467650
+20,Bass (TAS),Labor,4.1,2025-03-30 23:21:13.467650
+21,Bass (TAS),Any Other Candidate,14.0,2025-03-30 23:21:13.467650
+22,Bean (ACT),Labor,1.02,2025-03-30 23:21:13.467650
+23,Bean (ACT),Any Other Candidate,10.0,2025-03-30 23:21:13.467650
+24,Bean (ACT),Coalition,17.0,2025-03-30 23:21:13.467650
+25,Bendigo (VIC),Labor,1.09,2025-03-30 23:21:13.467650
+26,Bendigo (VIC),Coalition,5.75,2025-03-30 23:21:13.467650
+27,Bendigo (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+28,Bennelong (NSW),Coalition,1.28,2025-03-30 23:21:13.467650
+29,Bennelong (NSW),Labor,3.25,2025-03-30 23:21:13.467650
+30,Bennelong (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+31,Berowra (NSW),Coalition,1.005,2025-03-30 23:21:13.467650
+32,Berowra (NSW),Any Other Candidate,12.0,2025-03-30 23:21:13.467650
+33,Berowra (NSW),Labor,23.0,2025-03-30 23:21:13.467650
+34,Blair (QLD),Labor,1.27,2025-03-30 23:21:13.467650
+35,Blair (QLD),Coalition,3.7,2025-03-30 23:21:13.467650
+36,Blair (QLD),Any Other Candidate,12.0,2025-03-30 23:21:13.467650
+37,Blaxland (NSW),Labor,1.1,2025-03-30 23:21:13.467650
+38,Blaxland (NSW),Coalition,7.25,2025-03-30 23:21:13.467650
+39,Blaxland (NSW),Independent  (Ahmed Ouf),11.0,2025-03-30 23:21:13.467650
+40,Blaxland (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+41,Bonner (QLD),Coalition,1.08,2025-03-30 23:21:13.467650
+42,Bonner (QLD),Labor,6.0,2025-03-30 23:21:13.467650
+43,Bonner (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+44,Boothby (SA),Labor,1.8,2025-03-30 23:21:13.467650
+45,Boothby (SA),Coalition,1.9,2025-03-30 23:21:13.467650
+46,Boothby (SA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+47,Bowman (QLD),Coalition,1.01,2025-03-30 23:21:13.467650
+48,Bowman (QLD),Labor,12.0,2025-03-30 23:21:13.467650
+49,Bowman (QLD),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+50,Braddon (TAS),Coalition,1.07,2025-03-30 23:21:13.467650
+51,Braddon (TAS),Labor,7.0,2025-03-30 23:21:13.467650
+52,Braddon (TAS),Any Other Candidate,15.0,2025-03-30 23:21:13.467650
+53,Bradfield (NSW),Coalition,1.75,2025-03-30 23:21:13.467650
+54,Bradfield (NSW),Independent (Nicolette Boele),1.95,2025-03-30 23:21:13.467650
+55,Bradfield (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+56,Bradfield (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+57,Brand (WA),Labor,1.005,2025-03-30 23:21:13.467650
+58,Brand (WA),Coalition,14.0,2025-03-30 23:21:13.467650
+59,Brand (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+60,Brisbane (QLD),Labor,2.6,2025-03-30 23:21:13.467650
+61,Brisbane (QLD),Coalition,2.62,2025-03-30 23:21:13.467650
+62,Brisbane (QLD),Greens,2.95,2025-03-30 23:21:13.467650
+63,Brisbane (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+64,Bruce (VIC),Labor,1.43,2025-03-30 23:21:13.467650
+65,Bruce (VIC),Coalition,2.5,2025-03-30 23:21:13.467650
+66,Bruce (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+67,Bullwinkel (WA),Coalition,1.26,2025-03-30 23:21:13.467650
+68,Bullwinkel (WA),Labor,3.3,2025-03-30 23:21:13.467650
+69,Bullwinkel (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+70,Burt (WA),Labor,1.005,2025-03-30 23:21:13.467650
+71,Burt (WA),Coalition,14.0,2025-03-30 23:21:13.467650
+72,Burt (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+73,Calare (NSW),Coalition,1.6,2025-03-30 23:21:13.467650
+74,Calare (NSW),Independent (Andrew Gee),2.45,2025-03-30 23:21:13.467650
+75,Calare (NSW),Any Other Candidate,10.0,2025-03-30 23:21:13.467650
+76,Calare (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+77,Calwell (VIC),Labor,1.03,2025-03-30 23:21:13.467650
+78,Calwell (VIC),Any Other Candidate,11.0,2025-03-30 23:21:13.467650
+79,Calwell (VIC),Coalition,13.0,2025-03-30 23:21:13.467650
+80,Canberra (ACT),Labor,1.005,2025-03-30 23:21:13.467650
+81,Canberra (ACT),Greens,13.0,2025-03-30 23:21:13.467650
+82,Canberra (ACT),Coalition,26.0,2025-03-30 23:21:13.467650
+83,Canberra (ACT),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+84,Canning (WA),Coalition,1.03,2025-03-30 23:21:13.467650
+85,Canning (WA),Labor,9.0,2025-03-30 23:21:13.467650
+86,Canning (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+87,Capricornia (QLD),Coalition,1.03,2025-03-30 23:21:13.467650
+88,Capricornia (QLD),Labor,11.0,2025-03-30 23:21:13.467650
+89,Capricornia (QLD),Any Other Candidate,12.0,2025-03-30 23:21:13.467650
+90,Casey (VIC),Coalition,1.12,2025-03-30 23:21:13.467650
+91,Casey (VIC),Labor,6.5,2025-03-30 23:21:13.467650
+92,Casey (VIC),Independent (Claire Ferres Miles),12.0,2025-03-30 23:21:13.467650
+93,Casey (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+94,Chifley (NSW),Labor,1.02,2025-03-30 23:21:13.467650
+95,Chifley (NSW),Coalition,9.0,2025-03-30 23:21:13.467650
+96,Chifley (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+97,Chisholm (VIC),Coalition,1.31,2025-03-30 23:21:13.467650
+98,Chisholm (VIC),Labor,3.05,2025-03-30 23:21:13.467650
+99,Chisholm (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+100,Clark (TAS),Independent (Andrew Wilkie),1.005,2025-03-30 23:21:13.467650
+101,Clark (TAS),Coalition,26.0,2025-03-30 23:21:13.467650
+102,Clark (TAS),Labor,26.0,2025-03-30 23:21:13.467650
+103,Clark (TAS),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+104,Cook (NSW),Coalition,1.005,2025-03-30 23:21:13.467650
+105,Cook (NSW),Labor,15.0,2025-03-30 23:21:13.467650
+106,Cook (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+107,Cooper (VIC),Labor,1.06,2025-03-30 23:21:13.467650
+108,Cooper (VIC),Greens,7.0,2025-03-30 23:21:13.467650
+109,Cooper (VIC),Coalition,26.0,2025-03-30 23:21:13.467650
+110,Cooper (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+111,Corangamite (VIC),Labor,1.38,2025-03-30 23:21:13.467650
+112,Corangamite (VIC),Coalition,2.8,2025-03-30 23:21:13.467650
+113,Corangamite (VIC),Any Other Candidate,16.0,2025-03-30 23:21:13.467650
+114,Corio (VIC),Labor,1.01,2025-03-30 23:21:13.467650
+115,Corio (VIC),Coalition,15.0,2025-03-30 23:21:13.467650
+116,Corio (VIC),Any Other Candidate,15.0,2025-03-30 23:21:13.467650
+117,Cowan (WA),Labor,1.03,2025-03-30 23:21:13.467650
+118,Cowan (WA),Coalition,8.5,2025-03-30 23:21:13.467650
+119,Cowan (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+120,Cowper (NSW),Coalition,1.59,2025-03-30 23:21:13.467650
+121,Cowper (NSW),Independent (Caz Heise),2.18,2025-03-30 23:21:13.467650
+122,Cowper (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+123,Cowper (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+124,Cunningham (NSW),Labor,1.03,2025-03-30 23:21:13.467650
+125,Cunningham (NSW),Greens,11.0,2025-03-30 23:21:13.467650
+126,Cunningham (NSW),Coalition,21.0,2025-03-30 23:21:13.467650
+127,Cunningham (NSW),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+128,Curtin (WA),Coalition,1.48,2025-03-30 23:21:13.467650
+129,Curtin (WA),Independent (Kate Chaney),2.4,2025-03-30 23:21:13.467650
+130,Curtin (WA),Labor,26.0,2025-03-30 23:21:13.467650
+131,Curtin (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+132,Dawson (QLD),Coalition,1.02,2025-03-30 23:21:13.467650
+133,Dawson (QLD),Any Other Candidate,10.0,2025-03-30 23:21:13.467650
+134,Dawson (QLD),Labor,21.0,2025-03-30 23:21:13.467650
+135,Deakin (VIC),Coalition,1.17,2025-03-30 23:21:13.467650
+136,Deakin (VIC),Labor,4.25,2025-03-30 23:21:13.467650
+137,Deakin (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+138,Dickson (QLD),Coalition,1.21,2025-03-30 23:21:13.467650
+139,Dickson (QLD),Labor,5.25,2025-03-30 23:21:13.467650
+140,Dickson (QLD),Any Other Candidate,8.0,2025-03-30 23:21:13.467650
+141,Dobell (NSW),Labor,1.24,2025-03-30 23:21:13.467650
+142,Dobell (NSW),Coalition,3.9,2025-03-30 23:21:13.467650
+143,Dobell (NSW),Any Other Candidate,14.0,2025-03-30 23:21:13.467650
+144,Dunkley (VIC),Labor,1.43,2025-03-30 23:21:13.467650
+145,Dunkley (VIC),Coalition,2.5,2025-03-30 23:21:13.467650
+146,Dunkley (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+147,Durack (WA),Coalition,1.03,2025-03-30 23:21:13.467650
+148,Durack (WA),Any Other Candidate,9.0,2025-03-30 23:21:13.467650
+149,Durack (WA),Labor,21.0,2025-03-30 23:21:13.467650
+150,Eden-Monaro (NSW),Labor,1.28,2025-03-30 23:21:13.467650
+151,Eden-Monaro (NSW),Coalition,3.3,2025-03-30 23:21:13.467650
+152,Eden-Monaro (NSW),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+153,Fadden (QLD),Coalition,1.005,2025-03-30 23:21:13.467650
+154,Fadden (QLD),Labor,15.0,2025-03-30 23:21:13.467650
+155,Fadden (QLD),Any Other Candidate,19.0,2025-03-30 23:21:13.467650
+156,Fairfax (QLD),Coalition,1.005,2025-03-30 23:21:13.467650
+157,Fairfax (QLD),Any Other Candidate,14.0,2025-03-30 23:21:13.467650
+158,Fairfax (QLD),Labor,19.0,2025-03-30 23:21:13.467650
+159,Farrer (NSW),Coalition,1.005,2025-03-30 23:21:13.467650
+160,Farrer (NSW),Any Other Candidate,11.0,2025-03-30 23:21:13.467650
+161,Farrer (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+162,Fenner (ACT),Labor,1.01,2025-03-30 23:21:13.467650
+163,Fenner (ACT),Coalition,10.0,2025-03-30 23:21:13.467650
+164,Fenner (ACT),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+165,Fisher (QLD),Coalition,1.01,2025-03-30 23:21:13.467650
+166,Fisher (QLD),Any Other Candidate,10.0,2025-03-30 23:21:13.467650
+167,Fisher (QLD),Labor,23.0,2025-03-30 23:21:13.467650
+168,Flinders (VIC),Coalition,1.19,2025-03-30 23:21:13.467650
+169,Flinders (VIC),Any Other Candidate,4.0,2025-03-30 23:21:13.467650
+170,Flinders (VIC),Labor,26.0,2025-03-30 23:21:13.467650
+171,Flynn (QLD),Coalition,1.06,2025-03-30 23:21:13.467650
+172,Flynn (QLD),Any Other Candidate,7.5,2025-03-30 23:21:13.467650
+173,Flynn (QLD),Labor,19.0,2025-03-30 23:21:13.467650
+174,Forde (QLD),Coalition,1.05,2025-03-30 23:21:13.467650
+175,Forde (QLD),Labor,7.5,2025-03-30 23:21:13.467650
+176,Forde (QLD),Any Other Candidate,19.0,2025-03-30 23:21:13.467650
+177,Forrest (WA),Coalition,1.14,2025-03-30 23:21:13.467650
+178,Forrest (WA),Independent (Sue Chapman),4.9,2025-03-30 23:21:13.467650
+179,Forrest (WA),Labor,26.0,2025-03-30 23:21:13.467650
+180,Forrest (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+181,Fowler (NSW),Independent (Dai Le),1.35,2025-03-30 23:21:13.467650
+182,Fowler (NSW),Labor,2.95,2025-03-30 23:21:13.467650
+183,Fowler (NSW),Coalition,23.0,2025-03-30 23:21:13.467650
+184,Fowler (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+185,Franklin (TAS),Labor,1.03,2025-03-30 23:21:13.467650
+186,Franklin (TAS),Any Other Candidate,9.5,2025-03-30 23:21:13.467650
+187,Franklin (TAS),Coalition,21.0,2025-03-30 23:21:13.467650
+188,Franklin (TAS),Greens,26.0,2025-03-30 23:21:13.467650
+189,Fraser (VIC),Labor,1.01,2025-03-30 23:21:13.467650
+190,Fraser (VIC),Greens,13.0,2025-03-30 23:21:13.467650
+191,Fraser (VIC),Coalition,21.0,2025-03-30 23:21:13.467650
+192,Fraser (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+193,Fremantle (WA),Labor,1.23,2025-03-30 23:21:13.467650
+194,Fremantle (WA),Any Other Candidate,3.8,2025-03-30 23:21:13.467650
+195,Fremantle (WA),Coalition,21.0,2025-03-30 23:21:13.467650
+196,Gellibrand (VIC),Labor,1.02,2025-03-30 23:21:13.467650
+197,Gellibrand (VIC),Any Other Candidate,14.0,2025-03-30 23:21:13.467650
+198,Gellibrand (VIC),Coalition,14.0,2025-03-30 23:21:13.467650
+199,Gilmore (NSW),Coalition,1.18,2025-03-30 23:21:13.467650
+200,Gilmore (NSW),Labor,4.7,2025-03-30 23:21:13.467650
+201,Gilmore (NSW),Any Other Candidate,12.0,2025-03-30 23:21:13.467650
+202,Gippsland (VIC),Coalition,1.005,2025-03-30 23:21:13.467650
+203,Gippsland (VIC),Labor,19.0,2025-03-30 23:21:13.467650
+204,Gippsland (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+205,Goldstein (VIC),Independent (Zoe Daniel),1.59,2025-03-30 23:21:13.467650
+206,Goldstein (VIC),Coalition,2.18,2025-03-30 23:21:13.467650
+207,Goldstein (VIC),Labor,26.0,2025-03-30 23:21:13.467650
+208,Goldstein (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+209,Gorton (VIC),Labor,1.03,2025-03-30 23:21:13.467650
+210,Gorton (VIC),Coalition,8.0,2025-03-30 23:21:13.467650
+211,Gorton (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+212,Grayndler (NSW),Labor,1.005,2025-03-30 23:21:13.467650
+213,Grayndler (NSW),Coalition,19.0,2025-03-30 23:21:13.467650
+214,Grayndler (NSW),Greens,19.0,2025-03-30 23:21:13.467650
+215,Grayndler (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+216,Greenway (NSW),Labor,1.1,2025-03-30 23:21:13.467650
+217,Greenway (NSW),Coalition,5.25,2025-03-30 23:21:13.467650
+218,Greenway (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+219,Grey (SA),Coalition,1.1,2025-03-30 23:21:13.467650
+220,Grey (SA),Any Other Candidate,6.5,2025-03-30 23:21:13.467650
+221,Grey (SA),Labor,13.0,2025-03-30 23:21:13.467650
+222,Griffith (QLD),Greens,1.66,2025-03-30 23:21:13.467650
+223,Griffith (QLD),Labor,2.27,2025-03-30 23:21:13.467650
+224,Griffith (QLD),Coalition,13.0,2025-03-30 23:21:13.467650
+225,Griffith (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+226,Groom (QLD),Coalition,1.09,2025-03-30 23:21:13.467650
+227,Groom (QLD),Independent (Suzie Holt),6.5,2025-03-30 23:21:13.467650
+228,Groom (QLD),Labor,23.0,2025-03-30 23:21:13.467650
+229,Groom (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+230,Hasluck (WA),Labor,1.22,2025-03-30 23:21:13.467650
+231,Hasluck (WA),Coalition,3.8,2025-03-30 23:21:13.467650
+232,Hasluck (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+233,Hawke (VIC),Labor,1.38,2025-03-30 23:21:13.467650
+234,Hawke (VIC),Coalition,2.75,2025-03-30 23:21:13.467650
+235,Hawke (VIC),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+236,Herbert (QLD),Coalition,1.005,2025-03-30 23:21:13.467650
+237,Herbert (QLD),Any Other Candidate,16.0,2025-03-30 23:21:13.467650
+238,Herbert (QLD),Labor,21.0,2025-03-30 23:21:13.467650
+239,Hindmarsh (SA),Labor,1.03,2025-03-30 23:21:13.467650
+240,Hindmarsh (SA),Coalition,8.5,2025-03-30 23:21:13.467650
+241,Hindmarsh (SA),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+242,Hinkler (QLD),Coalition,1.005,2025-03-30 23:21:13.467650
+243,Hinkler (QLD),Any Other Candidate,11.0,2025-03-30 23:21:13.467650
+244,Hinkler (QLD),Labor,21.0,2025-03-30 23:21:13.467650
+245,Holt (VIC),Labor,1.16,2025-03-30 23:21:13.467650
+246,Holt (VIC),Coalition,4.25,2025-03-30 23:21:13.467650
+247,Holt (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+248,Hotham (VIC),Labor,1.005,2025-03-30 23:21:13.467650
+249,Hotham (VIC),Coalition,15.0,2025-03-30 23:21:13.467650
+250,Hotham (VIC),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+251,Hughes (NSW),Coalition,1.04,2025-03-30 23:21:13.467650
+252,Hughes (NSW),Labor,7.25,2025-03-30 23:21:13.467650
+253,Hughes (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+254,Hume (NSW),Coalition,1.005,2025-03-30 23:21:13.467650
+255,Hume (NSW),Any Other Candidate,19.0,2025-03-30 23:21:13.467650
+256,Hume (NSW),Labor,21.0,2025-03-30 23:21:13.467650
+257,Hunter (NSW),Labor,1.35,2025-03-30 23:21:13.467650
+258,Hunter (NSW),Coalition,3.05,2025-03-30 23:21:13.467650
+259,Hunter (NSW),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+260,Hunter (NSW),One Nation,26.0,2025-03-30 23:21:13.467650
+261,Indi (VIC),Independent (Helen Haines),1.15,2025-03-30 23:21:13.467650
+262,Indi (VIC),Coalition,4.7,2025-03-30 23:21:13.467650
+263,Indi (VIC),Labor,26.0,2025-03-30 23:21:13.467650
+264,Indi (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+265,Isaacs (VIC),Labor,1.03,2025-03-30 23:21:13.467650
+266,Isaacs (VIC),Coalition,8.0,2025-03-30 23:21:13.467650
+267,Isaacs (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+268,Jagajaga (VIC),Labor,1.01,2025-03-30 23:21:13.467650
+269,Jagajaga (VIC),Coalition,14.0,2025-03-30 23:21:13.467650
+270,Jagajaga (VIC),Any Other Candidate,16.0,2025-03-30 23:21:13.467650
+271,Kennedy (QLD),Katter's Australian Party,1.03,2025-03-30 23:21:13.467650
+272,Kennedy (QLD),Coalition,9.0,2025-03-30 23:21:13.467650
+273,Kennedy (QLD),Labor,26.0,2025-03-30 23:21:13.467650
+274,Kennedy (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+275,Kingsford Smith (NSW),Labor,1.01,2025-03-30 23:21:13.467650
+276,Kingsford Smith (NSW),Coalition,12.0,2025-03-30 23:21:13.467650
+277,Kingsford Smith (NSW),Any Other Candidate,16.0,2025-03-30 23:21:13.467650
+278,Kingston (SA),Labor,1.005,2025-03-30 23:21:13.467650
+279,Kingston (SA),Coalition,14.0,2025-03-30 23:21:13.467650
+280,Kingston (SA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+281,Kooyong (VIC),Coalition,1.8,2025-03-30 23:21:13.467650
+282,Kooyong (VIC),Independent (Monique Ryan),1.87,2025-03-30 23:21:13.467650
+283,Kooyong (VIC),Labor,26.0,2025-03-30 23:21:13.467650
+284,Kooyong (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+285,La Trobe (VIC),Coalition,1.01,2025-03-30 23:21:13.467650
+286,La Trobe (VIC),Any Other Candidate,12.0,2025-03-30 23:21:13.467650
+287,La Trobe (VIC),Labor,21.0,2025-03-30 23:21:13.467650
+288,Lalor (VIC),Labor,1.005,2025-03-30 23:21:13.467650
+289,Lalor (VIC),Coalition,13.0,2025-03-30 23:21:13.467650
+290,Lalor (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+291,Leichhardt (QLD),Coalition,1.34,2025-03-30 23:21:13.467650
+292,Leichhardt (QLD),Labor,3.0,2025-03-30 23:21:13.467650
+293,Leichhardt (QLD),Any Other Candidate,19.0,2025-03-30 23:21:13.467650
+294,Lilley (QLD),Labor,1.02,2025-03-30 23:21:13.467650
+295,Lilley (QLD),Coalition,12.0,2025-03-30 23:21:13.467650
+296,Lilley (QLD),Any Other Candidate,15.0,2025-03-30 23:21:13.467650
+297,Lindsay (NSW),Coalition,1.005,2025-03-30 23:21:13.467650
+298,Lindsay (NSW),Labor,15.0,2025-03-30 23:21:13.467650
+299,Lindsay (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+300,Lingiari (NT),Coalition,1.45,2025-03-30 23:21:13.467650
+301,Lingiari (NT),Labor,2.5,2025-03-30 23:21:13.467650
+302,Lingiari (NT),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+303,Longman (QLD),Coalition,1.09,2025-03-30 23:21:13.467650
+304,Longman (QLD),Labor,7.0,2025-03-30 23:21:13.467650
+305,Longman (QLD),Any Other Candidate,12.0,2025-03-30 23:21:13.467650
+306,Lyne (NSW),Coalition,1.01,2025-03-30 23:21:13.467650
+307,Lyne (NSW),Any Other Candidate,11.0,2025-03-30 23:21:13.467650
+308,Lyne (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+309,Lyons (TAS),Coalition,1.63,2025-03-30 23:21:13.467650
+310,Lyons (TAS),Labor,2.1,2025-03-30 23:21:13.467650
+311,Lyons (TAS),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+312,Macarthur (NSW),Labor,1.08,2025-03-30 23:21:13.467650
+313,Macarthur (NSW),Coalition,6.0,2025-03-30 23:21:13.467650
+314,Macarthur (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+315,Mackellar  (NSW),Independent (Sophie Scamps),1.37,2025-03-30 23:21:13.467650
+316,Mackellar  (NSW),Coalition,2.85,2025-03-30 23:21:13.467650
+317,Mackellar  (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+318,Mackellar  (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+319,Macnamara (VIC),Labor,2.0,2025-03-30 23:21:13.467650
+320,Macnamara (VIC),Greens,2.37,2025-03-30 23:21:13.467650
+321,Macnamara (VIC),Coalition,5.0,2025-03-30 23:21:13.467650
+322,Macnamara (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+323,Macquarie (NSW),Labor,1.31,2025-03-30 23:21:13.467650
+324,Macquarie (NSW),Coalition,3.1,2025-03-30 23:21:13.467650
+325,Macquarie (NSW),Any Other Candidate,19.0,2025-03-30 23:21:13.467650
+326,Makin (SA),Labor,1.005,2025-03-30 23:21:13.467650
+327,Makin (SA),Coalition,13.0,2025-03-30 23:21:13.467650
+328,Makin (SA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+329,Mallee (VIC),Coalition,1.005,2025-03-30 23:21:13.467650
+330,Mallee (VIC),Any Other Candidate,19.0,2025-03-30 23:21:13.467650
+331,Mallee (VIC),Labor,21.0,2025-03-30 23:21:13.467650
+332,Maranoa (QLD),Coalition,1.005,2025-03-30 23:21:13.467650
+333,Maranoa (QLD),One Nation,16.0,2025-03-30 23:21:13.467650
+334,Maranoa (QLD),Labor,26.0,2025-03-30 23:21:13.467650
+335,Maranoa (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+336,Maribyrnong (VIC),Labor,1.02,2025-03-30 23:21:13.467650
+337,Maribyrnong (VIC),Coalition,12.0,2025-03-30 23:21:13.467650
+338,Maribyrnong (VIC),Any Other Candidate,16.0,2025-03-30 23:21:13.467650
+339,Mayo (SA),Centre Alliance,1.18,2025-03-30 23:21:13.467650
+340,Mayo (SA),Coalition,4.7,2025-03-30 23:21:13.467650
+341,Mayo (SA),Labor,15.0,2025-03-30 23:21:13.467650
+342,Mayo (SA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+343,McEwen (VIC),Coalition,1.57,2025-03-30 23:21:13.467650
+344,McEwen (VIC),Labor,2.25,2025-03-30 23:21:13.467650
+345,McEwen (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+346,McMahon (NSW),Labor,1.03,2025-03-30 23:21:13.467650
+347,McMahon (NSW),Any Other Candidate,10.0,2025-03-30 23:21:13.467650
+348,McMahon (NSW),Coalition,15.0,2025-03-30 23:21:13.467650
+349,McPherson (QLD),Coalition,1.37,2025-03-30 23:21:13.467650
+350,McPherson (QLD),Independent (Erchana Murray-Barlett),2.8,2025-03-30 23:21:13.467650
+351,McPherson (QLD),Labor,26.0,2025-03-30 23:21:13.467650
+352,McPherson (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+353,Melbourne (VIC),Greens,1.05,2025-03-30 23:21:13.467650
+354,Melbourne (VIC),Labor,8.5,2025-03-30 23:21:13.467650
+355,Melbourne (VIC),Any Other Candidate,17.0,2025-03-30 23:21:13.467650
+356,Melbourne (VIC),Coalition,26.0,2025-03-30 23:21:13.467650
+357,Menzies (VIC),Coalition,1.08,2025-03-30 23:21:13.467650
+358,Menzies (VIC),Labor,6.0,2025-03-30 23:21:13.467650
+359,Menzies (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+360,Mitchell (NSW),Coalition,1.005,2025-03-30 23:21:13.467650
+361,Mitchell (NSW),Labor,15.0,2025-03-30 23:21:13.467650
+362,Mitchell (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+363,Monash (VIC),Coalition,1.38,2025-03-30 23:21:13.467650
+364,Monash (VIC),Independent (Russell Broadbent),4.25,2025-03-30 23:21:13.467650
+365,Monash (VIC),Any Other Candidate,6.5,2025-03-30 23:21:13.467650
+366,Monash (VIC),Labor,23.0,2025-03-30 23:21:13.467650
+367,Moncrieff (QLD),Coalition,1.005,2025-03-30 23:21:13.467650
+368,Moncrieff (QLD),Any Other Candidate,13.0,2025-03-30 23:21:13.467650
+369,Moncrieff (QLD),Labor,26.0,2025-03-30 23:21:13.467650
+370,Moore (WA),Coalition,1.19,2025-03-30 23:21:13.467650
+371,Moore (WA),Labor,6.5,2025-03-30 23:21:13.467650
+372,Moore (WA),Independent (Ian Goodenough),8.5,2025-03-30 23:21:13.467650
+373,Moore (WA),Any Other Candidate,19.0,2025-03-30 23:21:13.467650
+374,Moreton (QLD),Labor,1.14,2025-03-30 23:21:13.467650
+375,Moreton (QLD),Coalition,6.5,2025-03-30 23:21:13.467650
+376,Moreton (QLD),Greens,9.5,2025-03-30 23:21:13.467650
+377,Moreton (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+378,New England (NSW),Coalition,1.005,2025-03-30 23:21:13.467650
+379,New England (NSW),Any Other Candidate,11.0,2025-03-30 23:21:13.467650
+380,New England (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+381,Newcastle (NSW),Labor,1.01,2025-03-30 23:21:13.467650
+382,Newcastle (NSW),Greens,15.0,2025-03-30 23:21:13.467650
+383,Newcastle (NSW),Coalition,21.0,2025-03-30 23:21:13.467650
+384,Newcastle (NSW),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+385,Nicholls (VIC),Coalition,1.05,2025-03-30 23:21:13.467650
+386,Nicholls (VIC),Any Other Candidate,7.0,2025-03-30 23:21:13.467650
+387,Nicholls (VIC),Labor,26.0,2025-03-30 23:21:13.467650
+388,O'Connor (WA),Coalition,1.05,2025-03-30 23:21:13.467650
+389,O'Connor (WA),Labor,10.0,2025-03-30 23:21:13.467650
+390,O'Connor (WA),Any Other Candidate,10.0,2025-03-30 23:21:13.467650
+391,Oxley (QLD),Labor,1.005,2025-03-30 23:21:13.467650
+392,Oxley (QLD),Coalition,12.0,2025-03-30 23:21:13.467650
+393,Oxley (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+394,Page (NSW),Coalition,1.03,2025-03-30 23:21:13.467650
+395,Page (NSW),Labor,12.0,2025-03-30 23:21:13.467650
+396,Page (NSW),Any Other Candidate,12.0,2025-03-30 23:21:13.467650
+397,Parkes (NSW),Coalition,1.01,2025-03-30 23:21:13.467650
+398,Parkes (NSW),Any Other Candidate,10.0,2025-03-30 23:21:13.467650
+399,Parkes (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+400,Parramatta (NSW),Labor,1.19,2025-03-30 23:21:13.467650
+401,Parramatta (NSW),Coalition,3.9,2025-03-30 23:21:13.467650
+402,Parramatta (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+403,Paterson (NSW),Coalition,1.63,2025-03-30 23:21:13.467650
+404,Paterson (NSW),Labor,2.37,2025-03-30 23:21:13.467650
+405,Paterson (NSW),Any Other Candidate,9.5,2025-03-30 23:21:13.467650
+406,Pearce (WA),Labor,1.41,2025-03-30 23:21:13.467650
+407,Pearce (WA),Coalition,2.62,2025-03-30 23:21:13.467650
+408,Pearce (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+409,Perth (WA),Labor,1.08,2025-03-30 23:21:13.467650
+410,Perth (WA),Greens,7.5,2025-03-30 23:21:13.467650
+411,Perth (WA),Coalition,14.0,2025-03-30 23:21:13.467650
+412,Perth (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+413,Petrie (QLD),Coalition,1.005,2025-03-30 23:21:13.467650
+414,Petrie (QLD),Labor,12.0,2025-03-30 23:21:13.467650
+415,Petrie (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+416,Rankin (QLD),Labor,1.02,2025-03-30 23:21:13.467650
+417,Rankin (QLD),Coalition,12.0,2025-03-30 23:21:13.467650
+418,Rankin (QLD),Any Other Candidate,16.0,2025-03-30 23:21:13.467650
+419,Reid (NSW),Labor,1.41,2025-03-30 23:21:13.467650
+420,Reid (NSW),Coalition,2.62,2025-03-30 23:21:13.467650
+421,Reid (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+422,Richmond (NSW),Labor,1.48,2025-03-30 23:21:13.467650
+423,Richmond (NSW),Greens,3.3,2025-03-30 23:21:13.467650
+424,Richmond (NSW),Coalition,9.5,2025-03-30 23:21:13.467650
+425,Richmond (NSW),Any Other Candidate,13.0,2025-03-30 23:21:13.467650
+426,Riverina (NSW),Coalition,1.02,2025-03-30 23:21:13.467650
+427,Riverina (NSW),Any Other Candidate,9.0,2025-03-30 23:21:13.467650
+428,Riverina (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+429,Robertson (NSW),Coalition,1.75,2025-03-30 23:21:13.467650
+430,Robertson (NSW),Labor,1.93,2025-03-30 23:21:13.467650
+431,Robertson (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+432,Ryan (QLD),Coalition,1.83,2025-03-30 23:21:13.467650
+433,Ryan (QLD),Greens,2.55,2025-03-30 23:21:13.467650
+434,Ryan (QLD),Labor,5.5,2025-03-30 23:21:13.467650
+435,Ryan (QLD),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+436,Scullin (VIC),Labor,1.005,2025-03-30 23:21:13.467650
+437,Scullin (VIC),Coalition,14.0,2025-03-30 23:21:13.467650
+438,Scullin (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+439,Shortland (NSW),Labor,1.13,2025-03-30 23:21:13.467650
+440,Shortland (NSW),Coalition,5.0,2025-03-30 23:21:13.467650
+441,Shortland (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+442,Solomon (NT),Labor,1.57,2025-03-30 23:21:13.467650
+443,Solomon (NT),Coalition,2.27,2025-03-30 23:21:13.467650
+444,Solomon (NT),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+445,Spence (SA),Labor,1.005,2025-03-30 23:21:13.467650
+446,Spence (SA),Coalition,15.0,2025-03-30 23:21:13.467650
+447,Spence (SA),Any Other Candidate,21.0,2025-03-30 23:21:13.467650
+448,Sturt  (SA),Coalition,1.32,2025-03-30 23:21:13.467650
+449,Sturt  (SA),Labor,3.9,2025-03-30 23:21:13.467650
+450,Sturt  (SA),Any Other Candidate,8.0,2025-03-30 23:21:13.467650
+451,Swan (WA),Labor,1.18,2025-03-30 23:21:13.467650
+452,Swan (WA),Coalition,4.1,2025-03-30 23:21:13.467650
+453,Swan (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+454,Sydney (NSW),Labor,1.01,2025-03-30 23:21:13.467650
+455,Sydney (NSW),Greens,11.0,2025-03-30 23:21:13.467650
+456,Sydney (NSW),Coalition,26.0,2025-03-30 23:21:13.467650
+457,Sydney (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+458,Tangney (WA),Coalition,1.7,2025-03-30 23:21:13.467650
+459,Tangney (WA),Labor,2.0,2025-03-30 23:21:13.467650
+460,Tangney (WA),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+461,Wannon (VIC),Coalition,1.5,2025-03-30 23:21:13.467650
+462,Wannon (VIC),Independent (Alex Dyson),2.38,2025-03-30 23:21:13.467650
+463,Wannon (VIC),Labor,26.0,2025-03-30 23:21:13.467650
+464,Wannon (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+465,Warringah (NSW),Independent (Zali Steggall),1.14,2025-03-30 23:21:13.467650
+466,Warringah (NSW),Coalition,4.7,2025-03-30 23:21:13.467650
+467,Warringah (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+468,Warringah (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+469,Watson (NSW),Labor,1.04,2025-03-30 23:21:13.467650
+470,Watson (NSW),Independent (Ziad Basyouny),9.0,2025-03-30 23:21:13.467650
+471,Watson (NSW),Coalition,16.0,2025-03-30 23:21:13.467650
+472,Watson (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+473,Wentworth (NSW),Independent (Allegra Spender),1.2,2025-03-30 23:21:13.467650
+474,Wentworth (NSW),Coalition,3.9,2025-03-30 23:21:13.467650
+475,Wentworth (NSW),Labor,26.0,2025-03-30 23:21:13.467650
+476,Wentworth (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+477,Werriwa (NSW),Labor,1.43,2025-03-30 23:21:13.467650
+478,Werriwa (NSW),Coalition,2.5,2025-03-30 23:21:13.467650
+479,Werriwa (NSW),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+480,Whitlam (NSW),Labor,1.25,2025-03-30 23:21:13.467650
+481,Whitlam (NSW),Coalition,3.5,2025-03-30 23:21:13.467650
+482,Whitlam (NSW),Any Other Candidate,19.0,2025-03-30 23:21:13.467650
+483,Wide Bay (QLD),Coalition,1.03,2025-03-30 23:21:13.467650
+484,Wide Bay (QLD),Any Other Candidate,9.5,2025-03-30 23:21:13.467650
+485,Wide Bay (QLD),Labor,21.0,2025-03-30 23:21:13.467650
+486,Wills (VIC),Labor,1.57,2025-03-30 23:21:13.467650
+487,Wills (VIC),Greens,2.2,2025-03-30 23:21:13.467650
+488,Wills (VIC),Coalition,26.0,2025-03-30 23:21:13.467650
+489,Wills (VIC),Any Other Candidate,26.0,2025-03-30 23:21:13.467650
+490,Wright (QLD),Coalition,1.02,2025-03-30 23:21:13.467650
+491,Wright (QLD),Any Other Candidate,10.0,2025-03-30 23:21:13.467650
+492,Wright (QLD),Labor,26.0,2025-03-30 23:21:13.467650
