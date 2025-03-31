@@ -418,7 +418,8 @@ def finalise_plot(axes: plt.Axes, **kwargs) -> None:
 
     # margins
     # axes.use_sticky_margins = False  # This is problematic ...
-    axes.margins(0.02)
+    if "figsize" not in kwargs:
+        axes.margins(0.02)
     axes.autoscale(tight=False)  # This is problematic ...
 
     _apply_kwargs(axes, **kwargs)
