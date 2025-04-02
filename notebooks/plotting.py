@@ -28,9 +28,6 @@ mpl.rcParams["font.size"] = 12
 DEFAULT_FILE_TYPE = "png"
 DEFAULT_FIG_SIZE = (9, 4.5)
 DEFAULT_DPI = 300
-DEFAULT_CHART_DIR = "../charts"
-Path(DEFAULT_CHART_DIR).mkdir(parents=True, exist_ok=True)
-
 
 NARROW_WIDTH = 1.0
 WIDE_WIDTH = 2.0
@@ -91,6 +88,21 @@ LFOOTER = "Australian polling data sourced from Wikipedia. "
 footers = {"lfooter": LFOOTER, "rfooter": RFOOTER}
 
 # --- initialise plot
+DEFAULT_CHART_DIR = "../charts"
+CHART_DIR = Path(DEFAULT_CHART_DIR)
+CHART_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_chart_dir() -> str:
+    """Return the path to the chart directory."""
+    return CHART_DIR.__str__().rstrip('/')
+
+
+def set_chart_dir(path: str) -> None:
+    """Set the path to the chart directory."""
+    global CHART_DIR
+    CHART_DIR = Path(path)
+    CHART_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def initiate_plot() -> tuple[plt.Figure, plt.Axes]:
@@ -107,7 +119,7 @@ def initiate_plot() -> tuple[plt.Figure, plt.Axes]:
 def clear_chart_dir() -> None:
     """Remove all graph-image files from the chart_dir."""
 
-    for fs_object in Path(DEFAULT_CHART_DIR).glob(f"*.{DEFAULT_FILE_TYPE}"):
+    for fs_object in CHART_DIR.glob(f"*.{DEFAULT_FILE_TYPE}"):
         if fs_object.is_file():
             fs_object.unlink()
 
@@ -363,11 +375,10 @@ def _save_to_file(fig: plt.Figure, **kwargs) -> None:
         file_title = re.sub(_reduce, "-", file_title)
         file_type = kwargs.get("file_type", DEFAULT_FILE_TYPE)
         dpi = kwargs.get("dpi", DEFAULT_DPI)
-        fig.savefig(f"{DEFAULT_CHART_DIR}/{file_title}.{file_type}", dpi=dpi)
+        fig.savefig(f"{get_chart_dir()}/{file_title}.{file_type}", dpi=dpi)
 
 
 # - public functions for finalise_plot()
-
 
 # public
 def get_possible_kwargs() -> list[str]:
