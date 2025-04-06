@@ -346,7 +346,7 @@ def _apply_kwargs(axes: plt.Axes, **kwargs) -> None:
             axes.axhline(y=50, lw=0.75, c="#555555")
 
     if check_kwargs("concise_dates"):
-        locator = mdates.AutoDateLocator(minticks=2, maxticks=9)
+        locator = mdates.AutoDateLocator(minticks=4, maxticks=10)
         formatter = mdates.ConciseDateFormatter(locator)
         axes.xaxis.set_major_locator(locator)
         axes.xaxis.set_major_formatter(formatter)

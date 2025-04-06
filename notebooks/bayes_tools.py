@@ -521,7 +521,7 @@ def generate_model_map(
         display(gv)
 
 
-def _get_var(var_name: str, idata: az.InferenceData) -> pd.DataFrame:
+def extract(var_name: str, idata: az.InferenceData) -> pd.DataFrame:
     """Extract the chains/draws for a specified var_name."""
 
     return (
@@ -571,7 +571,7 @@ def plot_voting(inputs, idata, previous: float, palette, **kwargs) -> pd.Series:
     """Plot voting intention from both GRW and GP models."""
 
     # get the relevant data as a DataFrame
-    df = _get_var("voting_intention", idata) - inputs["centre_offset"]
+    df = extract("voting_intention", idata) - inputs["centre_offset"]
     plot_some_samples: int = kwargs.get("plot_some_samples", 0)
     df.index = (
         [x.to_timestamp() for x in inputs["poll_date"]]
@@ -782,7 +782,7 @@ def plot_house_effects(
 
     # get the data as a DataFrame
     inv_map = {v: k for k, v in inputs["firm_map"].items()}
-    df = _get_var("house_effects", idata).rename(index=inv_map)
+    df = extract("house_effects", idata).rename(index=inv_map)
     he_middle = df.quantile(0.5, axis=1).sort_values()
     df = df.reindex(he_middle.index)
 
